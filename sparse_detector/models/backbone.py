@@ -2,7 +2,7 @@
 """
 Backbone modules.
 """
-from collections import OrderedDict
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -11,9 +11,9 @@ from torch import nn
 from torchvision.models._utils import IntermediateLayerGetter
 from typing import Dict, List
 
-from util.misc import NestedTensor, is_main_process
+from sparse_detector.util.misc import NestedTensor, is_main_process
 
-from .position_encoding import build_position_encoding
+from sparse_detector.models.position_encoding import build_position_encoding
 
 
 class FrozenBatchNorm2d(torch.nn.Module):
@@ -109,11 +109,17 @@ class Joiner(nn.Sequential):
         return out, pos
 
 
-def build_backbone(args):
-    position_embedding = build_position_encoding(args)
-    train_backbone = args.lr_backbone > 0
-    return_interm_layers = args.masks
-    backbone = Backbone(args.backbone, train_backbone, return_interm_layers, args.dilation)
+def build_backbone(
+    backbone: str,
+    lr_backbone: float,
+    dilation: bool,
+    return_interm_layers: bool,
+    position_embedding: str,
+    hidden_dim: int
+) -> nn.Sequential:
+    position_embedding = build_position_encoding(position_embedding, hidden_dim)
+    train_backbone = lr_backbone > 0
+    backbone = Backbone(backbone, train_backbone, return_interm_layers, dilation)
     model = Joiner(backbone, position_embedding)
     model.num_channels = backbone.num_channels
     return model
