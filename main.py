@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 import argparse
 import datetime
 import json
@@ -10,11 +9,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
 
-import datasets
-import util.misc as utils
-from datasets import build_dataset, get_coco_api_from_dataset
+import sparse_detector.util.misc as utils
+from sparse_detector.datasets import build_dataset, get_coco_api_from_dataset
 from engine import evaluate, train_one_epoch
-from models import build_model
+from sparse_detector.models import build_model
 
 
 def get_args_parser():
@@ -56,10 +54,6 @@ def get_args_parser():
                         help="Number of query slots")
     parser.add_argument('--pre_norm', action='store_true')
 
-    # * Segmentation
-    parser.add_argument('--masks', action='store_true',
-                        help="Train segmentation head if the flag is provided")
-
     # Loss
     parser.add_argument('--no_aux_loss', dest='aux_loss', action='store_false',
                         help="Disables auxiliary decoding losses (loss at each layer)")
@@ -95,10 +89,6 @@ def get_args_parser():
     parser.add_argument('--eval', action='store_true')
     parser.add_argument('--num_workers', default=2, type=int)
 
-    # distributed training parameters
-    parser.add_argument('--world_size', default=1, type=int,
-                        help='number of distributed processes')
-    parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
     return parser
 
 
@@ -110,7 +100,7 @@ def main(args):
         assert args.masks, "Frozen training is meant for segmentation only"
     print(args)
 
-    device = torch.device(args.device)
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
@@ -118,7 +108,30 @@ def main(args):
     np.random.seed(seed)
     random.seed(seed)
 
-    model, criterion, postprocessors = build_model(args)
+    model, criterion, postprocessors = build_model(
+        args.backbone,
+        args.lr_backbone,
+        args.dilation,
+        True,  # return_interm_layers: bool,
+        args.position_embedding,
+        args.hidden_dim,
+        args.enc_layers,
+        args.dec_layers,
+        dim_feedforward=args.dim_feedforward,
+        dropout=args.dropout,
+        num_queries=args.num_queries,
+        bbox_loss_coef=args.bbox_loss_coef,
+        giou_loss_coef=args.giou_loss_coef,
+        eos_coef=args.eos_coef,
+        aux_loss=args.aux_loss,
+        set_cost_class=args.set_cost_class,
+        set_cost_bbox=args.set_cost_bbox,
+        set_cost_giou=args.set_cost_giou,
+        nheads=args.nheads,
+        pre_norm=args.pre_norm,
+        dataset_file=args.dataset_file,
+        device=device
+    )
     model.to(device)
 
     model_without_ddp = model
@@ -157,12 +170,7 @@ def main(args):
     data_loader_val = DataLoader(dataset_val, args.batch_size, sampler=sampler_val,
                                  drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
 
-    if args.dataset_file == "coco_panoptic":
-        # We also evaluate AP during panoptic training, on original coco DS
-        coco_val = datasets.coco.build("val", args)
-        base_ds = get_coco_api_from_dataset(coco_val)
-    else:
-        base_ds = get_coco_api_from_dataset(dataset_val)
+    base_ds = get_coco_api_from_dataset(dataset_val)
 
     if args.frozen_weights is not None:
         checkpoint = torch.load(args.frozen_weights, map_location='cpu')

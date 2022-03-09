@@ -263,7 +263,7 @@ class MLP(nn.Module):
         return x
 
 
-def build(args,
+def build(
     backbone: str,
     lr_backbone: float,
     dilation: bool,
