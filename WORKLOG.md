@@ -2,6 +2,12 @@
 
 This file contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+## March 12, 2022
+- We continue to work on refactoring the `train_baseline` pipeline. Our major concerns at the moment include 1) how to manage the configurations of different experiments more efficiently; and 2) if there is any better alternative to the architecture of the codebase.
+- The goal for today is two-fold:
+  - Finish refactoring the code so we could start running the baseline experiment
+  - Integrate W&B logging -- **This is a must**
+
 ## March 10, 2022
 - Refactoring the DETR codebase to a more modular structure is pretty straightforward. All the parts related to segmentation have been removed.
 - It seems that the refactoring works so far, i.e., results before and after refactoring are similar. Next, we're going to modularize the configurations.

@@ -1,15 +1,23 @@
 """
 Entry point for training DETR Baseline
 """
+import os
 import sys
-import pprint
+import random
 from pathlib import Path
-import click
 
-package_root = Path(__file__).parent.parent
+import click
+import numpy as np
+
+import torch
+
+package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, package_root)
 
-from sparse_detector.configs import load_config
+from sparse_detector.util import misc as utils
+from sparse_detector.util import distributed  as dist_utils
+from sparse_detector.models import build_model
+from sparse_detector.engines.base import build_detr_optims
 
 
 @click.command("train_baseline")
@@ -44,22 +52,86 @@ from sparse_detector.configs import load_config
 @click.option('--dataset-file', default='coco')
 @click.option('--coco-path', type=str)
 @click.option('--output-dir', default='', help='path where to save, empty for no saving')
-@click.option('--resume', default='', help='resume from checkpoint')
+@click.option('--resume-from-checkpoint', default='', help='resume from checkpoint')
 @click.option('--start-epoch', default=0, type=int, help='start epoch')
-@click.option('--num_workers', default=12, type=int)
+@click.option('--num-workers', default=12, type=int)
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
+@click.pass_context
 def main(
-    config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
-    lr_drop, clip_max_norm, dilation, postion_embedding, enc_layers, dec_layers, dim_feedforward,
+    ctx, config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
+    lr_drop, clip_max_norm, dilation, position_embedding, enc_layers, dec_layers, dim_feedforward,
     hidden_dim, dropout, nheads, num_queries, pre_norm, aux_loss, set_cost_class,
     set_cost_bbox, set_cost_giou, bbox_loss_coef, giou_loss_coef, eos_coef,
-    dataset_file, coco_path, output_dir, resume, start_epoch, num_workers, dist_url
+    dataset_file, coco_path, output_dir, resume_from_checkpoint, start_epoch, num_workers, dist_url
 ):
+    # TODO: Update default configs with ctx.params
     args = locals()
-    pprint.pprint(args)
-    # configs = load_config(config)
-    # pprint.pprint(configs)
+    dist_config = dist_utils.init_distributed_mode(dist_url)
+    print("Initialized distributed training")
+    
+    print("git:\n  {}\n".format(utils.get_sha()))
+    print(args)
+
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    # fix the seed for reproducibility
+    seed = seed + dist_utils.get_rank()
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+    print("Setup output directory")
+    exp_dir = Path(output_dir) / exp_name
+    exp_dir.mkdir(parents=True, exist_ok=True)
+
+    print("Building DETR model...")
+    model, criterion, postprocessors = build_model(
+        backbone,
+        lr_backbone,
+        dilation,
+        True,  # return_interm_layers: boo
+        position_embedding,
+        hidden_dim,
+        enc_layers,
+        dec_layers,
+        dim_feedforward=dim_feedforward,
+        dropout=dropout,
+        num_queries=num_queries,
+        bbox_loss_coef=bbox_loss_coef,
+        giou_loss_coef=giou_loss_coef,
+        eos_coef=eos_coef,
+        aux_loss=aux_loss,
+        set_cost_class=set_cost_class,
+        set_cost_bbox=set_cost_bbox,
+        set_cost_giou=set_cost_giou,
+        nheads=nheads,
+        pre_norm=pre_norm,
+        dataset_file=dataset_file,
+        device=device
+    )
+    model.to(device)
+
+    model_without_ddp = model
+    if dist_config.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
+        model_without_ddp = model.module
+    n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print('number of params:', n_parameters)
+
+    print("Building optim...")
+    optimizer, lr_scheduler = build_detr_optims(model_without_ddp, lr=lr, lr_backbone=lr_backbone,
+                                                lr_drop=lr_drop, weight_decay=weight_decay)
+
+    if resume_from_checkpoint:
+        checkpoint = torch.load(resume_from_checkpoint, map_location='cpu')
+        model_without_ddp.load_state_dict(checkpoint['model'])
+        if 'optimizer' in checkpoint and 'lr_scheduler' in checkpoint and 'epoch' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+            args.start_epoch = checkpoint['epoch'] + 1
+        print(f"Resumming from checkpoint {resume_from_checkpoint}")
+
+    print("Start training...")
 
 if __name__ == "__main__":
     main()
-
