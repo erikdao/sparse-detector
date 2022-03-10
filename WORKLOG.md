@@ -5,6 +5,7 @@ This file contains the log of the works that I have done in this project. I'm tr
 ## March 10, 2022
 - Refactoring the DETR codebase to a more modular structure is pretty straightforward. All the parts related to segmentation have been removed.
 - It seems that the refactoring works so far, i.e., results before and after refactoring are similar. Next, we're going to modularize the configurations.
+- TODO: Figure out how to run the current code structure with `torchrun`
 
 ## March 9, 2022
 - After consideration, we decided that we will not be porting the code to Pytorch Lightning. Instead, we will base on the original DETR repo and gradually add the features/functionalities we need to the repo.
