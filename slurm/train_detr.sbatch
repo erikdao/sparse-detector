@@ -17,3 +17,7 @@ echo "Seed $SEED"
 python -m torch.distributed.launch --nproc_per_node=6 --use_env main.py --coco_path /proj/azizpour-group/users/cuongdao/data/COCO \
     --output_dir checkpoints --seed $SEED \
     --batch_size 8 --num_workers 4
+
+python -m torch.distributed.launch --nproc_per_node=6 --use_env main.py --coco_path /proj/azizpour-group/users/cuongdao/data/COCO \
+    --output_dir checkpoints --seed 0 \
+    --batch_size 8 --num_workers 4
