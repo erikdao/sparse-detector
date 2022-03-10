@@ -1,12 +1,15 @@
 """
 Entry point for training DETR Baseline
 """
+import os
 import sys
 import pprint
 from pathlib import Path
+
 import click
 
-package_root = Path(__file__).parent.parent
+package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+print(package_root)
 sys.path.insert(0, package_root)
 
 from sparse_detector.configs import load_config
@@ -46,11 +49,11 @@ from sparse_detector.configs import load_config
 @click.option('--output-dir', default='', help='path where to save, empty for no saving')
 @click.option('--resume', default='', help='resume from checkpoint')
 @click.option('--start-epoch', default=0, type=int, help='start epoch')
-@click.option('--num_workers', default=12, type=int)
+@click.option('--num-workers', default=12, type=int)
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
 def main(
     config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
-    lr_drop, clip_max_norm, dilation, postion_embedding, enc_layers, dec_layers, dim_feedforward,
+    lr_drop, clip_max_norm, dilation, position_embedding, enc_layers, dec_layers, dim_feedforward,
     hidden_dim, dropout, nheads, num_queries, pre_norm, aux_loss, set_cost_class,
     set_cost_bbox, set_cost_giou, bbox_loss_coef, giou_loss_coef, eos_coef,
     dataset_file, coco_path, output_dir, resume, start_epoch, num_workers, dist_url
