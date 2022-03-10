@@ -11,6 +11,7 @@ import torch
 from torch.utils.data import DataLoader, DistributedSampler
 
 import sparse_detector.util.misc as utils
+import sparse_detector.util.distributed as dist_utils
 from sparse_detector.datasets import build_dataset, get_coco_api_from_dataset
 from sparse_detector.models import build_model
 from engine import evaluate, train_one_epoch
@@ -93,9 +94,13 @@ def get_args_parser():
 
 
 def main(args):
-    utils.init_distributed_mode(args)
+    dist_config = dist_utils.init_distributed_mode(args.dist_url)
+    print("Initialized distributed training", dist_config)
+    
     print("git:\n  {}\n".format(utils.get_sha()))
     print(args)
+
+    return
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -132,7 +137,7 @@ def main(args):
     model.to(device)
 
     model_without_ddp = model
-    if args.distributed:
+    if distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -152,7 +157,7 @@ def main(args):
     dataset_train = build_dataset(image_set='train', dataset_file=args.dataset_file, coco_path=args.coco_path)
     dataset_val = build_dataset(image_set='val', dataset_file=args.dataset_file, coco_path=args.coco_path)
 
-    if args.distributed:
+    if distributed:
         sampler_train = DistributedSampler(dataset_train)
         sampler_val = DistributedSampler(dataset_val, shuffle=False)
     else:
@@ -192,7 +197,7 @@ def main(args):
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
+        if distributed:
             sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,

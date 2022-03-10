@@ -20,3 +20,9 @@ python -m torch.distributed.launch --nproc_per_node=6 --use_env \
     main.py --coco_path /proj/azizpour-group/users/cuongdao/data/COCO \
         --output_dir checkpoints --seed $SEED \
         --batch_size 8 --num_workers 12
+
+
+python -m torch.distributed.launch --nproc_per_node=6 --use_env \
+    main.py --coco_path /proj/azizpour-group/users/cuongdao/data/COCO \
+        --output_dir checkpoints --seed 42 \
+        --batch_size 8 --num_workers 12
