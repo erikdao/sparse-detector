@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH -n 96
+#SBATCH -n 72
 #SBATCH --gpus 6
 #SBATCH --time 72:00:00
 #SBATCH --mail-type FAIL
