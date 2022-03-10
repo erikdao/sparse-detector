@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from sparse_detector.datasets.loaders import build_dataloaders
 
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
@@ -100,12 +101,10 @@ def main(args):
     print("git:\n  {}\n".format(utils.get_sha()))
     print(args)
 
-    return
-
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # fix the seed for reproducibility
-    seed = args.seed + utils.get_rank()
+    seed = args.seed + dist_utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -137,8 +136,8 @@ def main(args):
     model.to(device)
 
     model_without_ddp = model
-    if distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+    if dist_config.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
         model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('number of params:', n_parameters)
@@ -154,25 +153,9 @@ def main(args):
                                   weight_decay=args.weight_decay)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_drop)
 
-    dataset_train = build_dataset(image_set='train', dataset_file=args.dataset_file, coco_path=args.coco_path)
-    dataset_val = build_dataset(image_set='val', dataset_file=args.dataset_file, coco_path=args.coco_path)
-
-    if distributed:
-        sampler_train = DistributedSampler(dataset_train)
-        sampler_val = DistributedSampler(dataset_val, shuffle=False)
-    else:
-        sampler_train = torch.utils.data.RandomSampler(dataset_train)
-        sampler_val = torch.utils.data.SequentialSampler(dataset_val)
-
-    batch_sampler_train = torch.utils.data.BatchSampler(
-        sampler_train, args.batch_size, drop_last=True)
-
-    data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
-                                   collate_fn=utils.collate_fn, num_workers=args.num_workers)
-    data_loader_val = DataLoader(dataset_val, args.batch_size, sampler=sampler_val,
-                                 drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
-
-    base_ds = get_coco_api_from_dataset(dataset_val)
+    data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
+        args.dataset_file, args.coco_path, args.batch_size, dist_config.distributed, args.num_workers
+    )
 
     output_dir = Path(args.output_dir)
     if args.resume:
@@ -197,7 +180,7 @@ def main(args):
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        if distributed:
+        if dist_config.distributed:
             sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
