@@ -9,7 +9,6 @@ import torchvision.transforms as T
 import torchvision.transforms.functional as F
 
 from sparse_detector.util.box_ops import box_xyxy_to_cxcywh
-from sparse_detector.util.misc import interpolate
 
 
 def crop(image, target, region):
