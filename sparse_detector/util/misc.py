@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 Misc functions, including distributed helpers.
 
@@ -10,7 +9,7 @@ import time
 from collections import defaultdict, deque
 import datetime
 from packaging import version
-from typing import Optional, List, Any
+from typing import Optional, List
 
 import torch
 import torch.distributed as dist
@@ -23,6 +22,7 @@ if version.parse(torchvision.__version__) < version.parse('0.7'):
     from torchvision.ops.misc import _output_size
 
 from sparse_detector.util.distributed import is_dist_avail_and_initialized
+
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
