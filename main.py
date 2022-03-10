@@ -6,13 +6,14 @@ import time
 from pathlib import Path
 
 import numpy as np
+
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
 
 import sparse_detector.util.misc as utils
 from sparse_detector.datasets import build_dataset, get_coco_api_from_dataset
-from engine import evaluate, train_one_epoch
 from sparse_detector.models import build_model
+from engine import evaluate, train_one_epoch
 
 
 def get_args_parser():
