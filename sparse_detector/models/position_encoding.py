@@ -5,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from sparse_detector.util.misc import NestedTensor
+from sparse_detector.utils.misc import NestedTensor
 
 
 class PositionEmbeddingSine(nn.Module):

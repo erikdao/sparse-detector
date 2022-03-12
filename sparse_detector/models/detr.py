@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from sparse_detector.util import box_ops
-from sparse_detector.util.misc import NestedTensor, nested_tensor_from_tensor_list, accuracy
-from sparse_detector.util.distributed import get_world_size, is_dist_avail_and_initialized
+from sparse_detector.utils import box_ops
+from sparse_detector.utils.misc import NestedTensor, nested_tensor_from_tensor_list, accuracy
+from sparse_detector.utils.distributed import get_world_size, is_dist_avail_and_initialized
 from sparse_detector.models.backbone import build_backbone
 from sparse_detector.models.matcher import build_matcher
 from sparse_detector.models.transformer import build_transformer

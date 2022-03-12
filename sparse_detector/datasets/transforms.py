@@ -8,7 +8,7 @@ import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
 
-from sparse_detector.util.box_ops import box_xyxy_to_cxcywh
+from sparse_detector.utils.box_ops import box_xyxy_to_cxcywh
 
 
 def crop(image, target, region):

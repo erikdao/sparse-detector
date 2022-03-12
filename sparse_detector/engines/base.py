@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from sparse_detector.util import misc as utils
-from sparse_detector.util import distributed as dist_utils
+from sparse_detector.utils import misc as utils
+from sparse_detector.utils import distributed as dist_utils
 from sparse_detector.datasets.coco_eval import CocoEvaluator
 
 

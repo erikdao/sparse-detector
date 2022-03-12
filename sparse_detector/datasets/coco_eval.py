@@ -14,7 +14,7 @@ import torch
 from pycocotools.cocoeval import COCOeval
 from pycocotools.coco import COCO
 
-from sparse_detector.util.distributed import all_gather
+from sparse_detector.utils.distributed import all_gather
 
 
 class CocoEvaluator(object):

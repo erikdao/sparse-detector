@@ -3,7 +3,7 @@ from typing import Any, Optional, Tuple
 import torch.utils.data as data_utils
 
 from sparse_detector.datasets import build_dataset, get_coco_api_from_dataset
-from sparse_detector.util import misc as misc_utils
+from sparse_detector.utils import misc as misc_utils
 
 
 def build_dataloaders(

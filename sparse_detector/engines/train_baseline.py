@@ -17,8 +17,8 @@ import torch
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, package_root)
 
-from sparse_detector.util import misc as utils
-from sparse_detector.util import distributed  as dist_utils
+from sparse_detector.utils import misc as utils
+from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
