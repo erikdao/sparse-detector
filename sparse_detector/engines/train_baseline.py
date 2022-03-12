@@ -3,7 +3,10 @@ Entry point for training DETR Baseline
 """
 import os
 import sys
+import time
+import json
 import random
+import datetime
 from pathlib import Path
 
 import click
@@ -17,7 +20,8 @@ sys.path.insert(0, package_root)
 from sparse_detector.util import misc as utils
 from sparse_detector.util import distributed  as dist_utils
 from sparse_detector.models import build_model
-from sparse_detector.engines.base import build_detr_optims
+from sparse_detector.datasets.loaders import build_dataloaders
+from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
 
 
 @click.command("train_baseline")
@@ -118,6 +122,11 @@ def main(
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('number of params:', n_parameters)
 
+    print("Building datasets and data loaders...")
+    data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
+        args.dataset_file, args.coco_path, args.batch_size, dist_config.distributed, args.num_workers
+    )
+
     print("Building optim...")
     optimizer, lr_scheduler = build_detr_optims(model_without_ddp, lr=lr, lr_backbone=lr_backbone,
                                                 lr_drop=lr_drop, weight_decay=weight_decay)
@@ -132,6 +141,56 @@ def main(
         print(f"Resumming from checkpoint {resume_from_checkpoint}")
 
     print("Start training...")
+    start_time = time.time()
+    for epoch in range(start_epoch, epochs):
+        if dist_config.distributed:
+            sampler_train.set_epoch(epoch)
+        train_stats = train_one_epoch(
+            model, criterion, data_loader_train, optimizer, device, epoch,
+            args.clip_max_norm)
+        lr_scheduler.step()
+        if exp_dir:
+            checkpoint_paths = [exp_dir / 'checkpoint.pth']
+            # extra checkpoint before LR drop and every 100 epochs
+            if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 100 == 0:
+                checkpoint_paths.append(output_dir / f'checkpoint_{epoch:04}.pth')
+            for checkpoint_path in checkpoint_paths:
+                utils.save_on_master({
+                    'model': model_without_ddp.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'lr_scheduler': lr_scheduler.state_dict(),
+                    'epoch': epoch,
+                    'hyperparams': ctx.params,
+                }, checkpoint_path)
+
+        test_stats, coco_evaluator = evaluate(
+            model, criterion, postprocessors, data_loader_val, base_ds, device, args.output_dir
+        )
+
+        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
+                     **{f'test_{k}': v for k, v in test_stats.items()},
+                     'epoch': epoch,
+                     'n_parameters': n_parameters}
+
+        if exp_dir and utils.is_main_process():
+            with (exp_dir / "log.txt").open("a") as f:
+                f.write(json.dumps(log_stats) + "\n")
+
+            # for evaluation logs
+            if coco_evaluator is not None:
+                (exp_dir / 'eval').mkdir(exist_ok=True)
+                if "bbox" in coco_evaluator.coco_eval:
+                    filenames = ['latest.pth']
+                    if epoch % 50 == 0:
+                        filenames.append(f'{epoch:03}.pth')
+                    for name in filenames:
+                        torch.save(coco_evaluator.coco_eval["bbox"].eval,
+                                   exp_dir / "eval" / name)
+
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+    print('Training time {}'.format(total_time_str))
+
 
 if __name__ == "__main__":
     main()
