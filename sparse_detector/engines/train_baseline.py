@@ -124,7 +124,7 @@ def main(
 
     print("Building datasets and data loaders...")
     data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
-        args.dataset_file, args.coco_path, args.batch_size, dist_config.distributed, args.num_workers
+        dataset_file, coco_path, batch_size, dist_config.distributed, num_workers
     )
 
     print("Building optim...")
@@ -137,7 +137,7 @@ def main(
         if 'optimizer' in checkpoint and 'lr_scheduler' in checkpoint and 'epoch' in checkpoint:
             optimizer.load_state_dict(checkpoint['optimizer'])
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-            args.start_epoch = checkpoint['epoch'] + 1
+            start_epoch = checkpoint['epoch'] + 1
         print(f"Resumming from checkpoint {resume_from_checkpoint}")
 
     print("Start training...")
@@ -147,7 +147,7 @@ def main(
             sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
-            args.clip_max_norm)
+            clip_max_norm)
         lr_scheduler.step()
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
@@ -164,7 +164,7 @@ def main(
                 }, checkpoint_path)
 
         test_stats, coco_evaluator = evaluate(
-            model, criterion, postprocessors, data_loader_val, base_ds, device, args.output_dir
+            model, criterion, postprocessors, data_loader_val, base_ds, device
         )
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
