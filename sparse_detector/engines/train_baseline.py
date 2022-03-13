@@ -128,8 +128,13 @@ def main(
     )
 
     print("Building optim...")
-    optimizer, lr_scheduler = build_detr_optims(model_without_ddp, lr=lr, lr_backbone=lr_backbone,
-                                                lr_drop=lr_drop, weight_decay=weight_decay)
+    optimizer, lr_scheduler = build_detr_optims(
+        model_without_ddp,
+        lr=lr,
+        lr_backbone=lr_backbone,
+        lr_drop=lr_drop,
+        weight_decay=weight_decay
+    )
 
     if resume_from_checkpoint:
         checkpoint = torch.load(resume_from_checkpoint, map_location='cpu')
@@ -163,14 +168,14 @@ def main(
                     'hyperparams': ctx.params,
                 }, checkpoint_path)
 
-        test_stats, coco_evaluator = evaluate(
-            model, criterion, postprocessors, data_loader_val, base_ds, device
-        )
+        test_stats, coco_evaluator = evaluate(model, criterion, postprocessors, data_loader_val, base_ds, device)
 
-        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                     **{f'test_{k}': v for k, v in test_stats.items()},
-                     'epoch': epoch,
-                     'n_parameters': n_parameters}
+        log_stats = {
+            **{f'train_{k}': v for k, v in train_stats.items()},
+            **{f'test_{k}': v for k, v in test_stats.items()},
+            'epoch': epoch,
+            'n_parameters': n_parameters
+        }
 
         if exp_dir and utils.is_main_process():
             with (exp_dir / "log.txt").open("a") as f:
@@ -184,8 +189,7 @@ def main(
                     if epoch % 50 == 0:
                         filenames.append(f'{epoch:03}.pth')
                     for name in filenames:
-                        torch.save(coco_evaluator.coco_eval["bbox"].eval,
-                                   exp_dir / "eval" / name)
+                        torch.save(coco_evaluator.coco_eval["bbox"].eval, exp_dir / "eval" / name)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

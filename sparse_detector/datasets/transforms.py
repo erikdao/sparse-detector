@@ -3,7 +3,8 @@ Transforms and data augmentation for both image + bbox.
 """
 import random
 
-import PIL
+from PIL import Image
+
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
@@ -64,8 +65,6 @@ def hflip(image, target):
 
 
 def resize(image, target, size, max_size=None):
-    # size can be min_size (scalar) or (w, h) tuple
-
     def get_size_with_aspect_ratio(image_size, size, max_size=None):
         w, h = image_size
         if max_size is not None:
@@ -143,7 +142,7 @@ class RandomSizeCrop(object):
         self.min_size = min_size
         self.max_size = max_size
 
-    def __call__(self, img: PIL.Image.Image, target: dict):
+    def __call__(self, img: Image.Image, target: dict):
         w = random.randint(self.min_size, min(img.width, self.max_size))
         h = random.randint(self.min_size, min(img.height, self.max_size))
         region = T.RandomCrop.get_params(img, [h, w])
@@ -215,7 +214,6 @@ class ToTensor(object):
 
 
 class RandomErasing(object):
-
     def __init__(self, *args, **kwargs):
         self.eraser = T.RandomErasing(*args, **kwargs)
 
