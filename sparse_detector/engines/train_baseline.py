@@ -23,7 +23,7 @@ from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
-from sparse_detector.utils.logging import load_default_configs
+from sparse_detector.utils.logging import load_default_configs, log_to_wandb
 
 
 @click.command("train_baseline")
@@ -179,10 +179,14 @@ def main(
                     'epoch': epoch,
                     'hyperparams': ctx.params,
                 }, checkpoint_path)
+        
+        # Logging epoch train stats to W&B
+        log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train_epoch")
 
         test_stats, coco_evaluator = evaluate(
             model, criterion, postprocessors, data_loader_val, base_ds, device, wandb_run=wandb_run
         )
+        log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val_epoch")
 
         log_stats = {
             **{f'train_{k}': v for k, v in train_stats.items()},

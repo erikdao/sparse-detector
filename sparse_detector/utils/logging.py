@@ -59,14 +59,18 @@ log = get_logger(__name__)
 def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefix="train"):
     log_dict = dict()
     for key, value in data.items():
+        if isinstance(value, SmoothedValue):
+            value = value.global_avg
         log_dict[f"{prefix}/{key}"] = value
     
     if extra_data:
         for key, value in extra_data.items():
             log_dict[f"{prefix}/{key}"] = value
 
-    log_dict[f"{prefix}/global_step"] = global_step
     log_dict[f"{prefix}/epoch"] = epoch
+
+    if global_step:
+        log_dict[f"{prefix}/global_step"] = global_step
 
     run.log(log_dict)
 
@@ -221,15 +225,15 @@ class MetricLogger(object):
                         meters=str(self), **extra_data
                     ))
                     # Log to wandb
-                    # if self.wandb_run is not None:
-                    #     log_to_wandb(
-                    #         self.wandb_run,
-                    #         data=self.meters,
-                    #         extra_data=extra_data,
-                    #         global_step=i,
-                    #         epoch=epoch,
-                    #         prefix=prefix
-                    #     )
+                    if self.wandb_run is not None:
+                        log_to_wandb(
+                            self.wandb_run,
+                            data=self.meters,
+                            extra_data=extra_data,
+                            global_step=i,
+                            epoch=epoch,
+                            prefix=prefix
+                        )
                 else:
                     print(log_msg.format(
                         i, len(iterable), eta=eta_string,
