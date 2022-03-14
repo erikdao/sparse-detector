@@ -50,7 +50,7 @@ def train_one_epoch(
     data_loader: Iterable,
     optimizer: optim.Optimizer,
     device: torch.device,
-    epoch: int,
+    epoch: int = None,
     max_norm: float = 0,
     global_step: Optional[int] = None,
     wandb_run: Optional[Any] = None,
@@ -63,7 +63,7 @@ def train_one_epoch(
     metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
 
-    for (samples, targets), g_step in metric_logger.log_every(data_loader, log_freq, global_step=global_step, header=header, prefix="train-metrics", epoch=epoch):
+    for (samples, targets), g_step in metric_logger.log_every(data_loader, log_freq=log_freq, global_step=global_step, header=header, prefix="train", epoch=epoch):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -123,7 +123,7 @@ def evaluate(
     iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
     coco_evaluator = CocoEvaluator(base_ds, iou_types)
 
-    for samples, targets in metric_logger.log_every(data_loader, 10, header, prefix="val", epoch=epoch):
+    for samples, targets in metric_logger.log_every(data_loader, log_freq=10, header=header, prefix="val", epoch=epoch):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 

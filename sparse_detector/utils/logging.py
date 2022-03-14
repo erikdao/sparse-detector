@@ -40,22 +40,32 @@ log = get_logger(__name__)
 
 @rank_zero_only
 def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefix="train"):
+    main_metrics = ("loss", "loss_ce", "loss_bbox", "loss_giou", "class_error", "cardinality_error_unscaled")
     log_dict = dict()
-    for key, value in data.items():
+    data_copy = {**data}
+    for key, value in data_copy.items():
         if isinstance(value, SmoothedValue):
-            value = value.global_avg
-        log_dict[f"{prefix}/{key}"] = value
+            data_copy[key] = value.global_avg
+    # train-epoch-main-metrics, val-epoch-main-metrics
+    for key in main_metrics:
+        log_dict[f"{prefix}-main-metrics/{key}"] = data_copy.pop(key)
+
+    # train-metrics, val-metrics
+    for key, value in data_copy.items():
+        log_dict[f"{prefix}-metrics/{key}"] = value
     
+    # train-extra-metrics, val-extra-metrics
     if extra_data:
         for key, value in extra_data.items():
             if isinstance(value, SmoothedValue):
                 value = value.global_avg
-            log_dict[f"{prefix}/{key}"] = value
+            log_dict[f"{prefix}-extra-metrics/{key}"] = value
 
-    log_dict[f"{prefix}/epoch"] = epoch
+    if epoch is not None:
+        log_dict[f"{prefix}-main-metrics/epoch"] = epoch
 
-    if global_step:
-        log_dict[f"{prefix}/global_step"] = global_step
+    if global_step is not None:
+        log_dict[f"{prefix}-metrics/global_step"] = global_step
 
     run.log(log_dict)
 
@@ -159,7 +169,7 @@ class MetricLogger(object):
     def add_meter(self, name, meter):
         self.meters[name] = meter
 
-    def log_every(self, iterable, log_freq, global_step=None, header=None, prefix="train", epoch=None):
+    def log_every(self, iterable, log_freq=50, global_step=None, header=None, prefix="train", epoch=None):
         """
         Log stats every `log_freq` steps.
         """

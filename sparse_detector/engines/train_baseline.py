@@ -185,13 +185,13 @@ def main(
         
         # Logging epoch train stats to W&B
         if dist_utils.is_main_process():
-            log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train-main-metrics-epoch")
+            log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train-epoch")
 
         test_stats, coco_evaluator = evaluate(
             model, criterion, postprocessors, data_loader_val, base_ds, device, epoch, wandb_run=wandb_run
         )
         if dist_utils.is_main_process():
-            log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val_epoch")
+            log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val-epoch")
 
         log_stats = {
             **{f'train_{k}': v for k, v in train_stats.items()},
