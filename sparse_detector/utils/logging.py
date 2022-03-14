@@ -1,15 +1,32 @@
 """
 Logging utilities
 """
+import os
 import time
+import yaml
 import logging
 import datetime
+from pathlib import Path
+from typing import Any
 from collections import deque, defaultdict
 
 import torch
 import torch.distributed as dist
 
 from sparse_detector.utils.distributed import is_dist_avail_and_initialized, rank_zero_only
+
+
+def load_config(file_path) -> Any:
+    return yaml.load(open(file_path, "r"), Loader=yaml.FullLoader)
+
+
+def load_default_configs(file_path: Path = None) -> Any:
+    if file_path is None:
+        cur_dir = os.path.dirname(__file__)
+        cur_path = Path(cur_dir)
+        file_path = cur_path.parent.parent / "configs" / "base.yml"
+    
+    return load_config(file_path)
 
 
 def get_logger(name=__name__) -> logging.Logger:
@@ -36,6 +53,22 @@ def get_logger(name=__name__) -> logging.Logger:
     return logger
 
 log = get_logger(__name__)
+
+
+@rank_zero_only
+def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefix="train"):
+    log_dict = dict()
+    for key, value in data.items():
+        log_dict[f"{prefix}/{key}"] = value
+    
+    if extra_data:
+        for key, value in extra_data.items():
+            log_dict[f"{prefix}/{key}"] = value
+
+    log_dict[f"{prefix}/global_step"] = global_step
+    log_dict[f"{prefix}/epoch"] = epoch
+
+    run.log(log_dict)
 
 
 class SmoothedValue(object):
@@ -102,9 +135,10 @@ class SmoothedValue(object):
 
 
 class MetricLogger(object):
-    def __init__(self, delimiter="\t"):
+    def __init__(self, delimiter="\t", wandb_run=None):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
+        self.wandb_run = wandb_run
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
@@ -136,7 +170,10 @@ class MetricLogger(object):
     def add_meter(self, name, meter):
         self.meters[name] = meter
 
-    def log_every(self, iterable, print_freq, header=None):
+    def log_every(self, iterable, log_freq, header=None, prefix="train", epoch=None):
+        """
+        Log stats every `log_freq` steps.
+        """
         i = 0
         if not header:
             header = ''
@@ -151,8 +188,8 @@ class MetricLogger(object):
                 '[{0' + space_fmt + '}/{1}]',
                 'eta: {eta}',
                 '{meters}',
-                'time: {time}',
-                'data: {data}',
+                'time: {iter_time}',
+                'data: {data_time}',
                 'max mem: {memory:.0f}'
             ])
         else:
@@ -161,23 +198,38 @@ class MetricLogger(object):
                 '[{0' + space_fmt + '}/{1}]',
                 'eta: {eta}',
                 '{meters}',
-                'time: {time}',
-                'data: {data}'
+                'time: {iter_time}',
+                'data: {data_time}'
             ])
         MB = 1024.0 * 1024.0
         for obj in iterable:
             data_time.update(time.time() - end)
             yield obj
             iter_time.update(time.time() - end)
-            if i % print_freq == 0 or i == len(iterable) - 1:
+            if i % log_freq == 0 or i == len(iterable) - 1:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
+                    # Log to console
+                    extra_data = dict(
+                        iter_time=str(iter_time),
+                        data_time=str(data_time),
+                        memory=torch.cuda.max_memory_allocated() / MB
+                    )
                     print(log_msg.format(
                         i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time),
-                        memory=torch.cuda.max_memory_allocated() / MB))
+                        meters=str(self), **extra_data
+                    ))
+                    # Log to wandb
+                    # if self.wandb_run is not None:
+                    #     log_to_wandb(
+                    #         self.wandb_run,
+                    #         data=self.meters,
+                    #         extra_data=extra_data,
+                    #         global_step=i,
+                    #         epoch=epoch,
+                    #         prefix=prefix
+                    #     )
                 else:
                     print(log_msg.format(
                         i, len(iterable), eta=eta_string,

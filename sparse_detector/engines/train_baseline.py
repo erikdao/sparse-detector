@@ -9,6 +9,7 @@ import random
 import datetime
 from pathlib import Path
 
+import wandb
 import click
 import numpy as np
 
@@ -22,6 +23,7 @@ from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
+from sparse_detector.utils.logging import load_default_configs
 
 
 @click.command("train_baseline")
@@ -71,10 +73,19 @@ def main(
     # TODO: Update default configs with ctx.params
     args = locals()
     dist_config = dist_utils.init_distributed_mode(dist_url)
+    default_configs = load_default_configs()
     print("Initialized distributed training")
     
     print("git:\n  {}\n".format(utils.get_sha()))
     print(args)
+
+    print("Initialize WandB logging...")
+    wandb_run = None
+    if dist_utils.is_main_process():
+        wandb_configs = default_configs.get("wandb")
+        wandb_configs["name"] = exp_name
+        wandb_run = wandb.init(**wandb_configs)
+        # wandb.config.update(**ctx.params)
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -152,7 +163,8 @@ def main(
             sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
-            clip_max_norm)
+            clip_max_norm, wandb_run=wandb_run, log_freq=default_configs["logging"].get("log_freq")
+        )
         lr_scheduler.step()
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
@@ -168,7 +180,9 @@ def main(
                     'hyperparams': ctx.params,
                 }, checkpoint_path)
 
-        test_stats, coco_evaluator = evaluate(model, criterion, postprocessors, data_loader_val, base_ds, device)
+        test_stats, coco_evaluator = evaluate(
+            model, criterion, postprocessors, data_loader_val, base_ds, device, wandb_run=wandb_run
+        )
 
         log_stats = {
             **{f'train_{k}': v for k, v in train_stats.items()},
@@ -194,6 +208,8 @@ def main(
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
+
+    wandb.finish()
 
 
 if __name__ == "__main__":

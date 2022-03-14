@@ -44,18 +44,25 @@ def build_detr_optims(
     return optimizer, lr_scheduler
 
 
-def train_one_epoch(model: nn.Module, criterion: nn.Module,
-                    data_loader: Iterable, optimizer: optim.Optimizer,
-                    device: torch.device, epoch: int, max_norm: float = 0):
+def train_one_epoch(
+    model: nn.Module,
+    criterion: nn.Module,
+    data_loader: Iterable,
+    optimizer: optim.Optimizer,
+    device: torch.device,
+    epoch: int,
+    max_norm: float = 0,
+    wandb_run: Optional[Any] = None,
+    log_freq: Optional[int] = 50
+):
     model.train()
     criterion.train()
-    metric_logger = MetricLogger(delimiter="  ")
+    metric_logger = MetricLogger(delimiter="  ", wandb_run=wandb_run)
     metric_logger.add_meter('lr', SmoothedValue(window_size=1, fmt='{value:.6f}'))
     metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
-    print_freq = 50
 
-    for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
+    for samples, targets in metric_logger.log_every(data_loader, log_freq, header, prefix="train", epoch=epoch):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -102,20 +109,20 @@ def evaluate(
     postprocessors: Dict[str, Any],
     data_loader: Iterable,
     base_ds: Any,
-    device: torch.device
+    device: torch.device,
+    wandb_run: Optional[Any] = None
 ) -> Any:
     model.eval()
     criterion.eval()
 
-    metric_logger = MetricLogger(delimiter="  ")
+    metric_logger = MetricLogger(delimiter="  ", wandb_run=wandb_run)
     metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Test:'
 
     iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
     coco_evaluator = CocoEvaluator(base_ds, iou_types)
-    # coco_evaluator.coco_eval[iou_types[0]].params.iouThrs = [0, 0.1, 0.5, 0.75]
 
-    for samples, targets in metric_logger.log_every(data_loader, 10, header):
+    for samples, targets in metric_logger.log_every(data_loader, 10, header, prefix="val"):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -136,9 +143,6 @@ def evaluate(
 
         orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
         results = postprocessors['bbox'](outputs, orig_target_sizes)
-        if 'segm' in postprocessors.keys():
-            target_sizes = torch.stack([t["size"] for t in targets], dim=0)
-            results = postprocessors['segm'](results, outputs, orig_target_sizes, target_sizes)
         res = {target['image_id'].item(): output for target, output in zip(targets, results)}
         if coco_evaluator is not None:
             coco_evaluator.update(res)

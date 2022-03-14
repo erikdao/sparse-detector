@@ -1,6 +1,0 @@
-logging:
-  log_freq: 500
-
-wandb:
-  project: 'sparse-detector'
-  entity: 'erikdao'
