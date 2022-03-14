@@ -9,8 +9,9 @@ This file contains the log of the works that I have done in this project. I'm tr
   - `train-main-metrics`: major metrics including `loss, loss_ce, loss_bbox, loss_giou, class_error, cardinality_error`. All should be scaled.
   - `train-metrics`: all variants of those in the main metrics section.
   - `train-extra-metrics`: metrics including `memory, iter_time, data_time`
-  - `train-metrics-epoch`: major metrics as in `train-main-metrics` but for epoch
+  - `train-main-etrics-epoch`: major metrics as in `train-main-metrics` but for epoch
   - `val-metrics-epoch`: metrics for validations
+- Keeping a global variable named `global_step` is much easier for experiment tracking
 
 ## March 12, 2022
 - We continue to work on refactoring the `train_baseline` pipeline. Our major concerns at the moment include 1) how to manage the configurations of different experiments more efficiently; and 2) if there is any better alternative to the architecture of the codebase.

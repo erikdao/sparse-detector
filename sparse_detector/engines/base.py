@@ -52,6 +52,7 @@ def train_one_epoch(
     device: torch.device,
     epoch: int,
     max_norm: float = 0,
+    global_step: Optional[int] = None,
     wandb_run: Optional[Any] = None,
     log_freq: Optional[int] = 50
 ):
@@ -62,7 +63,7 @@ def train_one_epoch(
     metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
 
-    for samples, targets in metric_logger.log_every(data_loader, log_freq, header, prefix="train", epoch=epoch):
+    for (samples, targets), g_step in metric_logger.log_every(data_loader, log_freq, global_step=global_step, header=header, prefix="train-metrics", epoch=epoch):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -73,10 +74,8 @@ def train_one_epoch(
 
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = dist_utils.reduce_dict(loss_dict)
-        loss_dict_reduced_unscaled = {f'{k}_unscaled': v
-                                      for k, v in loss_dict_reduced.items()}
-        loss_dict_reduced_scaled = {k: v * weight_dict[k]
-                                    for k, v in loss_dict_reduced.items() if k in weight_dict}
+        loss_dict_reduced_unscaled = {f'{k}_unscaled': v for k, v in loss_dict_reduced.items()}
+        loss_dict_reduced_scaled = {k: v * weight_dict[k] for k, v in loss_dict_reduced.items() if k in weight_dict}
         losses_reduced_scaled = sum(loss_dict_reduced_scaled.values())
 
         loss_value = losses_reduced_scaled.item()
@@ -99,7 +98,8 @@ def train_one_epoch(
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    train_stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    return train_stats, g_step
 
 
 @torch.no_grad()

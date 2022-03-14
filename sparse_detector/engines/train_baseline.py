@@ -159,19 +159,20 @@ def main(
 
     print("Start training...")
     start_time = time.time()
+    global_step = 0  # Initialize the global step
     for epoch in range(start_epoch, epochs):
         if dist_config.distributed:
             sampler_train.set_epoch(epoch)
-        train_stats = train_one_epoch(
+        train_stats, global_step = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
-            clip_max_norm, wandb_run=wandb_run, log_freq=default_configs["logging"].get("log_freq")
+            clip_max_norm, global_step=global_step, wandb_run=wandb_run, log_freq=default_configs["logging"].get("log_freq")
         )
         lr_scheduler.step()
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
             # extra checkpoint before LR drop and every 100 epochs
             if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 100 == 0:
-                checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
+                checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}_step-{global_step:08}.pth')
             for checkpoint_path in checkpoint_paths:
                 dist_utils.save_on_master({
                     'model': model_without_ddp.state_dict(),
@@ -179,11 +180,12 @@ def main(
                     'lr_scheduler': lr_scheduler.state_dict(),
                     'epoch': epoch,
                     'hyperparams': ctx.params,
+                    'global_step': global_step,
                 }, checkpoint_path)
         
         # Logging epoch train stats to W&B
         if dist_utils.is_main_process():
-            log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train_epoch")
+            log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train-main-metrics-epoch")
 
         test_stats, coco_evaluator = evaluate(
             model, criterion, postprocessors, data_loader_val, base_ds, device, epoch, wandb_run=wandb_run
@@ -195,7 +197,8 @@ def main(
             **{f'train_{k}': v for k, v in train_stats.items()},
             **{f'test_{k}': v for k, v in test_stats.items()},
             'epoch': epoch,
-            'n_parameters': n_parameters
+            'n_parameters': n_parameters,
+            'global_step': global_step
         }
 
         if exp_dir and dist_utils.is_main_process():

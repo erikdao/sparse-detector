@@ -159,7 +159,7 @@ class MetricLogger(object):
     def add_meter(self, name, meter):
         self.meters[name] = meter
 
-    def log_every(self, iterable, log_freq, header=None, prefix="train", epoch=None):
+    def log_every(self, iterable, log_freq, global_step=None, header=None, prefix="train", epoch=None):
         """
         Log stats every `log_freq` steps.
         """
@@ -174,6 +174,7 @@ class MetricLogger(object):
         log_msg = self.delimiter.join([
             header,
             '[{0' + space_fmt + '}/{1}]',
+            'global step: {global_step}',
             'eta: {eta}',
             '{meters}',
             'time: {iter_time}',
@@ -190,24 +191,27 @@ class MetricLogger(object):
 
         for obj in iterable:
             data_time.update(time.time() - end)
-            yield obj
+            if global_step is not None:  # for training
+                yield obj, global_step
+            else:  # for testing
+                yield obj
             iter_time.update(time.time() - end)
-            if i % log_freq == 0 or i == len(iterable) - 1:
+            # if i % log_freq == 0 or i == len(iterable) - 1:
+            if global_step == 0 or (global_step + 1) % log_freq == 0:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 # Log to console
                 extra_data = dict(
-                    iter_time=iter_time,
-                    data_time=data_time,
+                    iter_time=float(str(iter_time)),
+                    data_time=float(str(data_time)),
                     memory=torch.cuda.max_memory_allocated() / MB
                 )
                 print(log_msg.format(
-                    i, len(iterable), eta=eta_string,
+                    i, len(iterable), global_step=global_step, eta=eta_string,
                     meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
                 ))
                 # Log to wandb
                 if self.wandb_run is not None:
-                    global_step = i if epoch == 0 else (i*epoch) + log_step_rounded
                     log_to_wandb(
                         self.wandb_run,
                         data=self.meters,
@@ -217,6 +221,8 @@ class MetricLogger(object):
                         prefix=prefix
                     )
             i += 1
+            if global_step is not None:
+                global_step += 1  # Increase the global step
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
