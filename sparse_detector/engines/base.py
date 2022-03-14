@@ -9,9 +9,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from sparse_detector.utils import misc as utils
 from sparse_detector.utils import distributed as dist_utils
 from sparse_detector.datasets.coco_eval import CocoEvaluator
+from sparse_detector.utils.logging import MetricLogger, SmoothedValue
 
 
 def build_detr_optims(
@@ -49,9 +49,9 @@ def train_one_epoch(model: nn.Module, criterion: nn.Module,
                     device: torch.device, epoch: int, max_norm: float = 0):
     model.train()
     criterion.train()
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
-    metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
+    metric_logger = MetricLogger(delimiter="  ")
+    metric_logger.add_meter('lr', SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
     print_freq = 50
 
@@ -107,8 +107,8 @@ def evaluate(
     model.eval()
     criterion.eval()
 
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
+    metric_logger = MetricLogger(delimiter="  ")
+    metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Test:'
 
     iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())

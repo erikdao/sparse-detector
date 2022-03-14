@@ -1,9 +1,10 @@
 """
 Utilities for distributed training
 """
+from functools import wraps
 import os
 import pickle
-from typing import Any
+from typing import Any, Callable, Optional
 from collections import namedtuple
 
 import torch
@@ -155,3 +156,17 @@ def reduce_dict(input_dict, average=True):
             values /= world_size
         reduced_dict = {k: v for k, v in zip(names, values)}
     return reduced_dict
+
+
+def rank_zero_only(fn: Callable) -> Callable:
+    """Function that can be used as a decorator to allow other function/method being run only on rank 0"""
+
+    @wraps(fn)
+    def wrapped_fun(*args, **kwargs) -> Optional[Any]:
+        if rank_zero_only.rank == 0:
+            return fn(*args, **kwargs)
+        return None
+    
+    return wrapped_fun
+
+rank_zero_only.rank = getattr(rank_zero_only, "rank", get_rank())
