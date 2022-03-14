@@ -5,6 +5,12 @@ This file contains the log of the works that I have done in this project. I'm tr
 ## March 14, 2022
 - It turned out that refactoring took more time than expected. The job now is to integrate W&B logging. The quick way to do so is to integrate logging right into the current `MetricLogger` class, which seems to be messy.
 - Logging to W&B is working, but we need to handle the **global_step** problem. Currently, its value is not correct.
+- After digging for about 3 hours, W&B logging is working as expected. There is still one problem, though. There are two many metrics logged, most of them are explaination of some major metrics. For more readability of visualizations and loggings, it is good to display on WandB metrics grouped as follow:
+  - `train-main-metrics`: major metrics including `loss, loss_ce, loss_bbox, loss_giou, class_error, cardinality_error`. All should be scaled.
+  - `train-metrics`: all variants of those in the main metrics section.
+  - `train-extra-metrics`: metrics including `memory, iter_time, data_time`
+  - `train-metrics-epoch`: major metrics as in `train-main-metrics` but for epoch
+  - `val-metrics-epoch`: metrics for validations
 
 ## March 12, 2022
 - We continue to work on refactoring the `train_baseline` pipeline. Our major concerns at the moment include 1) how to manage the configurations of different experiments more efficiently; and 2) if there is any better alternative to the architecture of the codebase.

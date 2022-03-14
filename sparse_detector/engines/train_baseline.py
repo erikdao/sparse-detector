@@ -18,12 +18,13 @@ import torch
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, package_root)
 
+from sparse_detector.configs import load_base_configs
 from sparse_detector.utils import misc as utils
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
-from sparse_detector.utils.logging import load_default_configs, log_to_wandb
+from sparse_detector.utils.logging import log_to_wandb
 
 
 @click.command("train_baseline")
@@ -73,7 +74,7 @@ def main(
     # TODO: Update default configs with ctx.params
     args = locals()
     dist_config = dist_utils.init_distributed_mode(dist_url)
-    default_configs = load_default_configs()
+    default_configs = load_base_configs()
     print("Initialized distributed training")
     
     print("git:\n  {}\n".format(utils.get_sha()))
@@ -131,7 +132,7 @@ def main(
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
         model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('number of params:', n_parameters)
+    print('Number of params:', n_parameters)
 
     print("Building datasets and data loaders...")
     data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
@@ -185,7 +186,7 @@ def main(
             log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train_epoch")
 
         test_stats, coco_evaluator = evaluate(
-            model, criterion, postprocessors, data_loader_val, base_ds, device, wandb_run=wandb_run
+            model, criterion, postprocessors, data_loader_val, base_ds, device, epoch, wandb_run=wandb_run
         )
         if dist_utils.is_main_process():
             log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val_epoch")

@@ -110,6 +110,7 @@ def evaluate(
     data_loader: Iterable,
     base_ds: Any,
     device: torch.device,
+    epoch: int,
     wandb_run: Optional[Any] = None
 ) -> Any:
     model.eval()
@@ -122,7 +123,7 @@ def evaluate(
     iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
     coco_evaluator = CocoEvaluator(base_ds, iou_types)
 
-    for samples, targets in metric_logger.log_every(data_loader, 10, header, prefix="val"):
+    for samples, targets in metric_logger.log_every(data_loader, 10, header, prefix="val", epoch=epoch):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
