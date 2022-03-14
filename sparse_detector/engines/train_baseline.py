@@ -172,7 +172,7 @@ def main(
             if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 100 == 0:
                 checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
             for checkpoint_path in checkpoint_paths:
-                utils.save_on_master({
+                dist_utils.save_on_master({
                     'model': model_without_ddp.state_dict(),
                     'optimizer': optimizer.state_dict(),
                     'lr_scheduler': lr_scheduler.state_dict(),
@@ -181,12 +181,14 @@ def main(
                 }, checkpoint_path)
         
         # Logging epoch train stats to W&B
-        log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train_epoch")
+        if dist_utils.is_main_process():
+            log_to_wandb(wandb_run, train_stats, epoch=epoch, prefix="train_epoch")
 
         test_stats, coco_evaluator = evaluate(
             model, criterion, postprocessors, data_loader_val, base_ds, device, wandb_run=wandb_run
         )
-        log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val_epoch")
+        if dist_utils.is_main_process():
+            log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val_epoch")
 
         log_stats = {
             **{f'train_{k}': v for k, v in train_stats.items()},
@@ -195,7 +197,7 @@ def main(
             'n_parameters': n_parameters
         }
 
-        if exp_dir and utils.is_main_process():
+        if exp_dir and dist_utils.is_main_process():
             with (exp_dir / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
 

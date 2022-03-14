@@ -18,3 +18,4 @@ not_tracked_dir/
 logs/
 checkpoints/
 wandb/
+temp/

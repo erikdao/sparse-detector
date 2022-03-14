@@ -16,19 +16,6 @@ import torch.distributed as dist
 from sparse_detector.utils.distributed import is_dist_avail_and_initialized, rank_zero_only
 
 
-def load_config(file_path) -> Any:
-    return yaml.load(open(file_path, "r"), Loader=yaml.FullLoader)
-
-
-def load_default_configs(file_path: Path = None) -> Any:
-    if file_path is None:
-        cur_dir = os.path.dirname(__file__)
-        cur_path = Path(cur_dir)
-        file_path = cur_path.parent.parent / "configs" / "base.yml"
-    
-    return load_config(file_path)
-
-
 def get_logger(name=__name__) -> logging.Logger:
     """Initializes multi-GPU friendly python command line logger"""
     logger = logging.getLogger(name)
@@ -65,6 +52,8 @@ def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefi
     
     if extra_data:
         for key, value in extra_data.items():
+            if isinstance(value, SmoothedValue):
+                value = value.global_avg
             log_dict[f"{prefix}/{key}"] = value
 
     log_dict[f"{prefix}/epoch"] = epoch
@@ -206,6 +195,13 @@ class MetricLogger(object):
                 'data: {data_time}'
             ])
         MB = 1024.0 * 1024.0
+
+        # Since we log the metrics for every `log_freq` steps, we need to manually
+        # calculate how many steps there are in an epoch, as well as how many logging steps
+        # we would do. This is necessary for a correct global step.
+        iter_count = len(iterable)  # Number of training steps per epoch
+        log_step_rounded = int(iter_count / log_freq)
+
         for obj in iterable:
             data_time.update(time.time() - end)
             yield obj
@@ -216,13 +212,13 @@ class MetricLogger(object):
                 if torch.cuda.is_available():
                     # Log to console
                     extra_data = dict(
-                        iter_time=str(iter_time),
-                        data_time=str(data_time),
+                        iter_time=iter_time,
+                        data_time=data_time,
                         memory=torch.cuda.max_memory_allocated() / MB
                     )
                     print(log_msg.format(
                         i, len(iterable), eta=eta_string,
-                        meters=str(self), **extra_data
+                        meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
                     ))
                     # Log to wandb
                     if self.wandb_run is not None:
@@ -230,7 +226,7 @@ class MetricLogger(object):
                             self.wandb_run,
                             data=self.meters,
                             extra_data=extra_data,
-                            global_step=i,
+                            global_step=(i*epoch) + log_step_rounded,
                             epoch=epoch,
                             prefix=prefix
                         )
