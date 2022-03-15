@@ -9,7 +9,13 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
 ### March 15, 2022
-- The baseline training was crashed after 17 epochs. The cause was that I switched the branch of the codebase leading to wrong data path. It has been resumed successfully.
+- The baseline training was crashed after 17 epochs. The cause was that we switched the branch of the codebase leading to wrong data path. It has been resumed successfully.
+- We ran the original DETR training for 25 epochs, and our **refactored** codebase for 25 epochs. Both for the Baseline experiment. We then plot the `class_error, loss_bbox_unscaled, mAP` for both cases. Our results are very similar to the original results. Therefore, we can be relieved that the refactoring did not change the expected behaviors of DETR.
+![Our code](./docs/img/detr_our_25epochs.png)
+Our implementation
+![Original code](./docs/img/detr_original_25epochs.png)
+DETR origianl implementation
+
 
 ### March 14, 2022
 - It turned out that refactoring took more time than expected. The job now is to integrate W&B logging. The quick way to do so is to integrate logging right into the current `MetricLogger` class, which seems to be messy.
