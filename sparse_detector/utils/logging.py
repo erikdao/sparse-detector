@@ -219,10 +219,6 @@ class MetricLogger(object):
                     data_time=float(str(data_time)),
                     memory=torch.cuda.max_memory_allocated() / MB
                 )
-                # print(log_msg.format(
-                #     i, len(iterable), global_step=global_step, eta=eta_string,
-                #     meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
-                # ))
                 # Log to wandb
                 if self.wandb_run is not None:
                     log_to_wandb(
@@ -233,6 +229,11 @@ class MetricLogger(object):
                         epoch=epoch,
                         prefix=prefix
                     )
+                else:  # Otherwise, log to console
+                    print(log_msg.format(
+                        i, len(iterable), global_step=global_step, eta=eta_string,
+                        meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
+                    ))
             i += 1
             if global_step is not None:
                 global_step += 1  # Increase the global step

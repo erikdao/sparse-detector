@@ -110,9 +110,14 @@ def evaluate(
     data_loader: Iterable,
     base_ds: Any,
     device: torch.device,
-    epoch: int,
+    epoch: int = None,
     wandb_run: Optional[Any] = None
 ) -> Any:
+    """
+    Returns:
+        stats: CocoEval stats, 12 metrics available in CocoEval
+        coco_evaluator: CocoEvaluator object
+    """
     model.eval()
     criterion.eval()
 
