@@ -63,13 +63,15 @@ from sparse_detector.utils.logging import log_to_wandb
 @click.option('--start-epoch', default=0, type=int, help='start epoch')
 @click.option('--num-workers', default=12, type=int)
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
+@click.option('--wandb-id', default=None, help="Run ID for resume")
 @click.pass_context
 def main(
     ctx, config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
     lr_drop, clip_max_norm, dilation, position_embedding, enc_layers, dec_layers, dim_feedforward,
     hidden_dim, dropout, nheads, num_queries, pre_norm, aux_loss, set_cost_class,
     set_cost_bbox, set_cost_giou, bbox_loss_coef, giou_loss_coef, eos_coef,
-    dataset_file, coco_path, output_dir, resume_from_checkpoint, start_epoch, num_workers, dist_url
+    dataset_file, coco_path, output_dir, resume_from_checkpoint, start_epoch,
+    num_workers, dist_url, wandb_id
 ):
     # TODO: Update default configs with ctx.params
     args = locals()
@@ -85,8 +87,14 @@ def main(
     if dist_utils.is_main_process():
         wandb_configs = default_configs.get("wandb")
         wandb_configs["name"] = exp_name
-        wandb_run = wandb.init(**wandb_configs)
-        # wandb.config.update(**ctx.params)
+        if wandb_id is not None:
+            wandb_configs["id"] = wandb_id
+            wandb_configs["resume"] = True
+
+        # Local config
+        config_to_log = {**args}
+        config_to_log.pop('ctx')
+        wandb_run = wandb.init(**wandb_configs, config=config_to_log)
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
