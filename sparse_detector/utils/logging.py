@@ -40,6 +40,9 @@ log = get_logger(__name__)
 
 @rank_zero_only
 def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefix="train"):
+    # Remove AP metrics as they require separate logging logics
+    data.pop('coco_eval_bbox', None)
+
     main_metrics = ("loss", "loss_ce", "loss_bbox", "loss_giou", "class_error", "cardinality_error_unscaled")
     log_dict = dict()
     data_copy = {**data}
@@ -69,6 +72,29 @@ def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefi
 
     if global_step is not None:
         log_dict[f"{prefix}-metrics/global_step"] = global_step
+
+    run.log(log_dict)
+
+
+@rank_zero_only
+def log_ap_to_wandb(run, stats, epoch=None, prefix=None):
+    """Log AP metrics to WandB"""
+    metrics = dict(
+       mAP=stats[0],
+       AP_50=stats[1],
+       AP_75=stats[2],
+       AP_S=stats[3],
+       AP_M=stats[4],
+       AP_L=stats[5],
+    )
+
+    log_dict = dict()
+    if prefix is not None:
+        for key, value in metrics.items():
+            log_dict[f"{prefix}/{key}"] = value
+    
+    if epoch is not None:
+        log_dict[f"{prefix}/epoch"] = epoch
 
     run.log(log_dict)
 
