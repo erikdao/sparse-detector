@@ -148,6 +148,7 @@ def main(
         weight_decay=weight_decay
     )
 
+    global_step = 0  # Initialize the global step
     if resume_from_checkpoint:
         checkpoint = torch.load(resume_from_checkpoint, map_location='cpu')
         model_without_ddp.load_state_dict(checkpoint['model'])
@@ -155,11 +156,11 @@ def main(
             optimizer.load_state_dict(checkpoint['optimizer'])
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
             start_epoch = checkpoint['epoch'] + 1
+            global_step = checkpoint['global_step'] + 1
         print(f"Resumming from checkpoint {resume_from_checkpoint}")
 
     print("Start training...")
     start_time = time.time()
-    global_step = 0  # Initialize the global step
     for epoch in range(start_epoch, epochs):
         if dist_config.distributed:
             sampler_train.set_epoch(epoch)
