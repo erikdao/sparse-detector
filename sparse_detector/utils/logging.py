@@ -60,9 +60,12 @@ def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefi
             if isinstance(value, SmoothedValue):
                 value = value.global_avg
             log_dict[f"{prefix}-extra-metrics/{key}"] = value
+        if global_step is not None:
+            log_dict[f"{prefix}-extra-metrics/global_step"] = global_step
 
     if epoch is not None:
         log_dict[f"{prefix}-main-metrics/epoch"] = epoch
+        log_dict[f"{prefix}-metrics/epoch"] = epoch
 
     if global_step is not None:
         log_dict[f"{prefix}-metrics/global_step"] = global_step
@@ -193,12 +196,6 @@ class MetricLogger(object):
         ])
         MB = 1024.0 * 1024.0
 
-        # Since we log the metrics for every `log_freq` steps, we need to manually
-        # calculate how many steps there are in an epoch, as well as how many logging steps
-        # we would do. This is necessary for a correct global step.
-        iter_count = len(iterable)  # Number of training steps per epoch
-        log_step_rounded = int(iter_count / log_freq)
-
         for obj in iterable:
             data_time.update(time.time() - end)
             if global_step is not None:  # for training
@@ -206,8 +203,14 @@ class MetricLogger(object):
             else:  # for testing
                 yield obj
             iter_time.update(time.time() - end)
-            # if i % log_freq == 0 or i == len(iterable) - 1:
-            if global_step == 0 or (global_step + 1) % log_freq == 0:
+
+            log_cond = False  # logging condition
+            if global_step is not None:
+                log_cond = global_step == 0 or (global_step + 1) % log_freq == 0
+            else:
+                log_cond = i % log_freq == 0 or i == len(iterable) - 1
+
+            if log_cond:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 # Log to console
@@ -216,10 +219,10 @@ class MetricLogger(object):
                     data_time=float(str(data_time)),
                     memory=torch.cuda.max_memory_allocated() / MB
                 )
-                print(log_msg.format(
-                    i, len(iterable), global_step=global_step, eta=eta_string,
-                    meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
-                ))
+                # print(log_msg.format(
+                #     i, len(iterable), global_step=global_step, eta=eta_string,
+                #     meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
+                # ))
                 # Log to wandb
                 if self.wandb_run is not None:
                     log_to_wandb(
