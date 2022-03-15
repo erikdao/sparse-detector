@@ -41,11 +41,11 @@ log = get_logger(__name__)
 @rank_zero_only
 def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefix="train"):
     # Remove AP metrics as they require separate logging logics
-    data.pop('coco_eval_bbox', None)
+    data_copy = {**data}
+    data_copy.pop('coco_eval_bbox', None)
 
     main_metrics = ("loss", "loss_ce", "loss_bbox", "loss_giou", "class_error", "cardinality_error_unscaled")
     log_dict = dict()
-    data_copy = {**data}
     for key, value in data_copy.items():
         if isinstance(value, SmoothedValue):
             data_copy[key] = value.global_avg
