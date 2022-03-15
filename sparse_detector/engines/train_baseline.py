@@ -64,6 +64,7 @@ from sparse_detector.utils.logging import log_to_wandb
 @click.option('--num-workers', default=12, type=int)
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
 @click.option('--wandb-id', default=None, help="Run ID for resume")
+@click.option('--wandb-log/--no-wandb-log', default=True, help="Whether to enable logging to W&B")
 @click.pass_context
 def main(
     ctx, config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
@@ -71,7 +72,7 @@ def main(
     hidden_dim, dropout, nheads, num_queries, pre_norm, aux_loss, set_cost_class,
     set_cost_bbox, set_cost_giou, bbox_loss_coef, giou_loss_coef, eos_coef,
     dataset_file, coco_path, output_dir, resume_from_checkpoint, start_epoch,
-    num_workers, dist_url, wandb_id
+    num_workers, dist_url, wandb_id, wandb_log
 ):
     # TODO: Update default configs with ctx.params
     args = locals()
@@ -84,7 +85,7 @@ def main(
 
     print("Initialize WandB logging...")
     wandb_run = None
-    if dist_utils.is_main_process():
+    if dist_utils.is_main_process() and wandb_log:
         wandb_configs = default_configs.get("wandb")
         wandb_configs["name"] = exp_name
         if wandb_id is not None:
@@ -98,7 +99,7 @@ def main(
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    # fix the seed for reproducibility
+    # Fix the seed for reproducibility
     seed = seed + dist_utils.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)

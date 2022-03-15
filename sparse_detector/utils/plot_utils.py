@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path, PurePath
 
 
-def plot_logs(logs, fields=('class_error', 'loss_bbox_unscaled', 'mAP'), ewm_col=0, log_name='log.txt'):
+def plot_logs(logs, fields=('class_error', 'loss_bbox_unscaled', 'mAP'), ewm_col=0, log_name='log.txt', out_file=None):
     """
     Function to plot specific fields from training log(s). Plots both training and test results.
 
@@ -71,6 +71,9 @@ def plot_logs(logs, fields=('class_error', 'loss_bbox_unscaled', 'mAP'), ewm_col
     for ax, field in zip(axs, fields):
         ax.legend([Path(p).name for p in logs])
         ax.set_title(field)
+
+    if out_file:
+        fig.savefig(out_file, bbox_inches="tight")
 
 
 def plot_precision_recall(files, naming_scheme='iter'):
