@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 Various positional encodings for the transformer.
 """
@@ -6,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from util.misc import NestedTensor
+from sparse_detector.utils.misc import NestedTensor
 
 
 class PositionEmbeddingSine(nn.Module):
@@ -76,14 +75,14 @@ class PositionEmbeddingLearned(nn.Module):
         return pos
 
 
-def build_position_encoding(args):
-    N_steps = args.hidden_dim // 2
-    if args.position_embedding in ('v2', 'sine'):
+def build_position_encoding(position_embedding: str, hidden_dim: int) -> nn.Module:
+    N_steps = hidden_dim // 2
+    if position_embedding in ('v2', 'sine'):
         # TODO find a better way of exposing other arguments
         position_embedding = PositionEmbeddingSine(N_steps, normalize=True)
-    elif args.position_embedding in ('v3', 'learned'):
+    elif position_embedding in ('v3', 'learned'):
         position_embedding = PositionEmbeddingLearned(N_steps)
     else:
-        raise ValueError(f"not supported {args.position_embedding}")
+        raise ValueError(f"not supported {position_embedding}")
 
     return position_embedding

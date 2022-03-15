@@ -1,21 +1,18 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 DETR model and criterion classes.
 """
+from typing import Any, Optional
+
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from torch import nn
 
-from util import box_ops
-from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
-                       accuracy, get_world_size, interpolate,
-                       is_dist_avail_and_initialized)
-
-from .backbone import build_backbone
-from .matcher import build_matcher
-from .segmentation import (DETRsegm, PostProcessPanoptic, PostProcessSegm,
-                           dice_loss, sigmoid_focal_loss)
-from .transformer import build_transformer
+from sparse_detector.utils import box_ops
+from sparse_detector.utils.misc import NestedTensor, nested_tensor_from_tensor_list, accuracy
+from sparse_detector.utils.distributed import get_world_size, is_dist_avail_and_initialized
+from sparse_detector.models.backbone import build_backbone
+from sparse_detector.models.matcher import build_matcher
+from sparse_detector.models.transformer import build_transformer
 
 
 class DETR(nn.Module):
@@ -161,53 +158,17 @@ class SetCriterion(nn.Module):
         losses['loss_giou'] = loss_giou.sum() / num_boxes
         return losses
 
-    def loss_masks(self, outputs, targets, indices, num_boxes):
-        """Compute the losses related to the masks: the focal loss and the dice loss.
-           targets dicts must contain the key "masks" containing a tensor of dim [nb_target_boxes, h, w]
-        """
-        assert "pred_masks" in outputs
-
-        src_idx = self._get_src_permutation_idx(indices)
-        tgt_idx = self._get_tgt_permutation_idx(indices)
-        src_masks = outputs["pred_masks"]
-        src_masks = src_masks[src_idx]
-        masks = [t["masks"] for t in targets]
-        # TODO use valid to mask invalid areas due to padding in loss
-        target_masks, valid = nested_tensor_from_tensor_list(masks).decompose()
-        target_masks = target_masks.to(src_masks)
-        target_masks = target_masks[tgt_idx]
-
-        # upsample predictions to the target size
-        src_masks = interpolate(src_masks[:, None], size=target_masks.shape[-2:],
-                                mode="bilinear", align_corners=False)
-        src_masks = src_masks[:, 0].flatten(1)
-
-        target_masks = target_masks.flatten(1)
-        target_masks = target_masks.view(src_masks.shape)
-        losses = {
-            "loss_mask": sigmoid_focal_loss(src_masks, target_masks, num_boxes),
-            "loss_dice": dice_loss(src_masks, target_masks, num_boxes),
-        }
-        return losses
-
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
         batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
         src_idx = torch.cat([src for (src, _) in indices])
         return batch_idx, src_idx
 
-    def _get_tgt_permutation_idx(self, indices):
-        # permute targets following indices
-        batch_idx = torch.cat([torch.full_like(tgt, i) for i, (_, tgt) in enumerate(indices)])
-        tgt_idx = torch.cat([tgt for (_, tgt) in indices])
-        return batch_idx, tgt_idx
-
     def get_loss(self, loss, outputs, targets, indices, num_boxes, **kwargs):
         loss_map = {
             'labels': self.loss_labels,
             'cardinality': self.loss_cardinality,
             'boxes': self.loss_boxes,
-            'masks': self.loss_masks
         }
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
         return loss_map[loss](outputs, targets, indices, num_boxes, **kwargs)
@@ -301,7 +262,30 @@ class MLP(nn.Module):
         return x
 
 
-def build(args):
+def build(
+    backbone: str,
+    lr_backbone: float,
+    dilation: bool,
+    return_interm_layers: bool,
+    position_embedding: str,
+    hidden_dim: int,
+    enc_layers: int,
+    dec_layers: int,
+    dim_feedforward: Optional[int] = 2048,
+    dropout: Optional[float] = 0.1,
+    num_queries: Optional[int] = 100,
+    bbox_loss_coef: Optional[float] = 5,
+    giou_loss_coef: Optional[float] = 2,
+    eos_coef: Optional[float] = 0.1,
+    aux_loss: Optional[bool] = False,
+    set_cost_class: Optional[int] = 1,
+    set_cost_bbox: Optional[int] = 5,
+    set_cost_giou: Optional[int] = 2,
+    nheads: Optional[int] = 8,
+    pre_norm: Optional[bool] = True,
+    dataset_file: Optional[str] = 'coco',
+    device: Optional[Any] = None
+) -> Any:
     # the `num_classes` naming here is somewhat misleading.
     # it indeed corresponds to `max_obj_id + 1`, where max_obj_id
     # is the maximum id for a class in your dataset. For example,
@@ -310,50 +294,48 @@ def build(args):
     # you should pass `num_classes` to be 2 (max_obj_id + 1).
     # For more details on this, check the following discussion
     # https://github.com/facebookresearch/detr/issues/108#issuecomment-650269223
-    num_classes = 20 if args.dataset_file != 'coco' else 91
-    if args.dataset_file == "coco_panoptic":
-        # for panoptic, we just add a num_classes that is large enough to hold
-        # max_obj_id + 1, but the exact value doesn't really matter
-        num_classes = 250
-    device = torch.device(args.device)
+    num_classes = 20 if dataset_file != 'coco' else 91
+    device = torch.device(device)
 
-    backbone = build_backbone(args)
+    enc_backbone = build_backbone(backbone, lr_backbone, dilation, return_interm_layers, position_embedding, hidden_dim)
 
-    transformer = build_transformer(args)
+    transformer = build_transformer(
+        hidden_dim=hidden_dim,
+        dim_feedforward=dim_feedforward,
+        enc_layers=enc_layers,
+        dec_layers=dec_layers,
+        dropout=dropout,
+        nheads=nheads,
+        pre_norm=pre_norm,
+    )
 
     model = DETR(
-        backbone,
+        enc_backbone,
         transformer,
         num_classes=num_classes,
-        num_queries=args.num_queries,
-        aux_loss=args.aux_loss,
+        num_queries=num_queries,
+        aux_loss=aux_loss,
     )
-    if args.masks:
-        model = DETRsegm(model, freeze_detr=(args.frozen_weights is not None))
-    matcher = build_matcher(args)
-    weight_dict = {'loss_ce': 1, 'loss_bbox': args.bbox_loss_coef}
-    weight_dict['loss_giou'] = args.giou_loss_coef
-    if args.masks:
-        weight_dict["loss_mask"] = args.mask_loss_coef
-        weight_dict["loss_dice"] = args.dice_loss_coef
+
+    matcher = build_matcher(
+        set_cost_class=set_cost_class,
+        set_cost_bbox=set_cost_bbox,
+        set_cost_giou=set_cost_giou
+    )
+    weight_dict = {'loss_ce': 1, 'loss_bbox': bbox_loss_coef}
+    weight_dict['loss_giou'] = giou_loss_coef
+    
     # TODO this is a hack
-    if args.aux_loss:
+    if aux_loss:
         aux_weight_dict = {}
-        for i in range(args.dec_layers - 1):
+        for i in range(dec_layers - 1):
             aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
     losses = ['labels', 'boxes', 'cardinality']
-    if args.masks:
-        losses += ["masks"]
     criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
-                             eos_coef=args.eos_coef, losses=losses)
+                             eos_coef=eos_coef, losses=losses)
     criterion.to(device)
     postprocessors = {'bbox': PostProcess()}
-    if args.masks:
-        postprocessors['segm'] = PostProcessSegm()
-        if args.dataset_file == "coco_panoptic":
-            is_thing_map = {i: i <= 90 for i in range(201)}
-            postprocessors["panoptic"] = PostProcessPanoptic(is_thing_map, threshold=0.85)
 
     return model, criterion, postprocessors

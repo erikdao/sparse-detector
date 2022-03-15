@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 COCO evaluator that works in distributed mode.
 
@@ -14,9 +13,8 @@ import torch
 
 from pycocotools.cocoeval import COCOeval
 from pycocotools.coco import COCO
-import pycocotools.mask as mask_util
 
-from util.misc import all_gather
+from sparse_detector.utils.distributed import all_gather
 
 
 class CocoEvaluator(object):
@@ -69,8 +67,6 @@ class CocoEvaluator(object):
     def prepare(self, predictions, iou_type):
         if iou_type == "bbox":
             return self.prepare_for_coco_detection(predictions)
-        elif iou_type == "segm":
-            return self.prepare_for_coco_segmentation(predictions)
         elif iou_type == "keypoints":
             return self.prepare_for_coco_keypoint(predictions)
         else:
@@ -96,41 +92,6 @@ class CocoEvaluator(object):
                         "score": scores[k],
                     }
                     for k, box in enumerate(boxes)
-                ]
-            )
-        return coco_results
-
-    def prepare_for_coco_segmentation(self, predictions):
-        coco_results = []
-        for original_id, prediction in predictions.items():
-            if len(prediction) == 0:
-                continue
-
-            scores = prediction["scores"]
-            labels = prediction["labels"]
-            masks = prediction["masks"]
-
-            masks = masks > 0.5
-
-            scores = prediction["scores"].tolist()
-            labels = prediction["labels"].tolist()
-
-            rles = [
-                mask_util.encode(np.array(mask[0, :, :, np.newaxis], dtype=np.uint8, order="F"))[0]
-                for mask in masks
-            ]
-            for rle in rles:
-                rle["counts"] = rle["counts"].decode("utf-8")
-
-            coco_results.extend(
-                [
-                    {
-                        "image_id": original_id,
-                        "category_id": labels[k],
-                        "segmentation": rle,
-                        "score": scores[k],
-                    }
-                    for k, rle in enumerate(rles)
                 ]
             )
         return coco_results
@@ -206,18 +167,16 @@ def create_common_coco_eval(coco_eval, img_ids, eval_imgs):
 
 
 def evaluate(self):
-    '''
+    """
     Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
     :return: None
-    '''
+    """
     # tic = time.time()
-    # print('Running per image evaluation...')
     p = self.params
     # add backward compatibility if useSegm is specified in params
     if p.useSegm is not None:
         p.iouType = 'segm' if p.useSegm == 1 else 'bbox'
         print('useSegm (deprecated) is not None. Running {} evaluation'.format(p.iouType))
-    # print('Evaluate annotation type *{}*'.format(p.iouType))
     p.imgIds = list(np.unique(p.imgIds))
     if p.useCats:
         p.catIds = list(np.unique(p.catIds))

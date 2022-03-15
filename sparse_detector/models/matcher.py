@@ -1,12 +1,11 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 Modules to compute the matching cost and solve the corresponding LSAP.
 """
 import torch
+import torch.nn as nn
 from scipy.optimize import linear_sum_assignment
-from torch import nn
 
-from util.box_ops import box_cxcywh_to_xyxy, generalized_box_iou
+from sparse_detector.utils.box_ops import box_cxcywh_to_xyxy, generalized_box_iou
 
 
 class HungarianMatcher(nn.Module):
@@ -82,5 +81,9 @@ class HungarianMatcher(nn.Module):
         return [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices]
 
 
-def build_matcher(args):
-    return HungarianMatcher(cost_class=args.set_cost_class, cost_bbox=args.set_cost_bbox, cost_giou=args.set_cost_giou)
+def build_matcher(set_cost_class: int, set_cost_bbox: int, set_cost_giou: int):
+    return HungarianMatcher(
+        cost_class=set_cost_class,
+        cost_bbox=set_cost_bbox,
+        cost_giou=set_cost_giou
+    )

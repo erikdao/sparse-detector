@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 DETR Transformer class.
 
@@ -8,11 +7,12 @@ Copy-paste from torch.nn.Transformer with modifications:
     * decoder returns a stack of activations from all decoding layers
 """
 import copy
-from typing import Optional, List
+from typing import Optional
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from torch import nn, Tensor
+from torch import Tensor
 
 
 class Transformer(nn.Module):
@@ -273,15 +273,23 @@ def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
 
-def build_transformer(args):
+def build_transformer(
+    hidden_dim: int = 256,
+    dim_feedforward: int = 2048,
+    enc_layers: int = 6,
+    dec_layers: int = 6,
+    dropout: float = 0.1,
+    nheads: int = 8,
+    pre_norm: bool = True
+):
     return Transformer(
-        d_model=args.hidden_dim,
-        dropout=args.dropout,
-        nhead=args.nheads,
-        dim_feedforward=args.dim_feedforward,
-        num_encoder_layers=args.enc_layers,
-        num_decoder_layers=args.dec_layers,
-        normalize_before=args.pre_norm,
+        d_model=hidden_dim,
+        dropout=dropout,
+        nhead=nheads,
+        dim_feedforward=dim_feedforward,
+        num_encoder_layers=enc_layers,
+        num_decoder_layers=dec_layers,
+        normalize_before=pre_norm,
         return_intermediate_dec=True,
     )
 

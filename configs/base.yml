@@ -1,0 +1,13 @@
+logging:
+  log_freq: 50
+
+wandb:
+  project: 'sparse-detector'
+  entity: 'erikdao'
+  dir: '.'
+  save_code: true
+  id: null
+  job_type: 'train'
+  allow_val_change: true
+  group: ''
+  tags: []

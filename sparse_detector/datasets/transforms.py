@@ -1,16 +1,15 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 """
 Transforms and data augmentation for both image + bbox.
 """
 import random
 
-import PIL
+from PIL import Image
+
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
 
-from util.box_ops import box_xyxy_to_cxcywh
-from util.misc import interpolate
+from sparse_detector.utils.box_ops import box_xyxy_to_cxcywh
 
 
 def crop(image, target, region):
@@ -34,11 +33,6 @@ def crop(image, target, region):
         target["boxes"] = cropped_boxes.reshape(-1, 4)
         target["area"] = area
         fields.append("boxes")
-
-    if "masks" in target:
-        # FIXME should we update the area here if there are no boxes?
-        target['masks'] = target['masks'][:, i:i + h, j:j + w]
-        fields.append("masks")
 
     # remove elements for which the boxes or masks that have zero area
     if "boxes" in target or "masks" in target:
@@ -67,15 +61,10 @@ def hflip(image, target):
         boxes = boxes[:, [2, 1, 0, 3]] * torch.as_tensor([-1, 1, -1, 1]) + torch.as_tensor([w, 0, w, 0])
         target["boxes"] = boxes
 
-    if "masks" in target:
-        target['masks'] = target['masks'].flip(-1)
-
     return flipped_image, target
 
 
 def resize(image, target, size, max_size=None):
-    # size can be min_size (scalar) or (w, h) tuple
-
     def get_size_with_aspect_ratio(image_size, size, max_size=None):
         w, h = image_size
         if max_size is not None:
@@ -125,10 +114,6 @@ def resize(image, target, size, max_size=None):
     h, w = size
     target["size"] = torch.tensor([h, w])
 
-    if "masks" in target:
-        target['masks'] = interpolate(
-            target['masks'][:, None].float(), size, mode="nearest")[:, 0] > 0.5
-
     return rescaled_image, target
 
 
@@ -140,8 +125,6 @@ def pad(image, target, padding):
     target = target.copy()
     # should we do something wrt the original size?
     target["size"] = torch.tensor(padded_image.size[::-1])
-    if "masks" in target:
-        target['masks'] = torch.nn.functional.pad(target['masks'], (0, padding[0], 0, padding[1]))
     return padded_image, target
 
 
@@ -159,7 +142,7 @@ class RandomSizeCrop(object):
         self.min_size = min_size
         self.max_size = max_size
 
-    def __call__(self, img: PIL.Image.Image, target: dict):
+    def __call__(self, img: Image.Image, target: dict):
         w = random.randint(self.min_size, min(img.width, self.max_size))
         h = random.randint(self.min_size, min(img.height, self.max_size))
         region = T.RandomCrop.get_params(img, [h, w])
@@ -231,7 +214,6 @@ class ToTensor(object):
 
 
 class RandomErasing(object):
-
     def __init__(self, *args, **kwargs):
         self.eraser = T.RandomErasing(*args, **kwargs)
 

@@ -17,3 +17,5 @@ not_tracked_dir/
 .vscode
 logs/
 checkpoints/
+wandb/
+temp/
