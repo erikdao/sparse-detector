@@ -209,8 +209,10 @@ class RandomSelect(object):
 
 
 class ToTensor(object):
-    def __call__(self, img, target):
-        return F.to_tensor(img), target
+    def __call__(self, img, target=None):
+        if target is not None:
+            return F.to_tensor(img), target
+        return F.to_tensor(img)
 
 
 class RandomErasing(object):

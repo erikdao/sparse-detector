@@ -12,6 +12,10 @@ from pycocotools import mask as coco_mask
 
 import sparse_detector.datasets.transforms as T
 
+NORMALIZATION = {
+    "mean": [0.485, 0.456, 0.406],
+    "std": [0.229, 0.224, 0.225]
+}
 
 class CocoDetection(torchvision.datasets.CocoDetection):
     def __init__(self, img_folder, ann_file, transforms):
