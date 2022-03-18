@@ -5,8 +5,8 @@ PROJ_DIR=/proj/azizpour-group/users/cuongdao/projects/sparse-detector
 SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines/
 SEED=42
 
-torchrun --nproc_per_node=1 $SCRIPT_DIR/eval_baseline.py \
+torchrun --nproc_per_node=6 $SCRIPT_DIR/eval_baseline.py \
     --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
     --batch-size 6 \
-    --num-workers 12 \
+    --num-workers 24 \
     --checkpoint checkpoints/baseline_detr/checkpoint.pth
