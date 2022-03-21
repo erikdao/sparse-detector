@@ -40,9 +40,12 @@ log = get_logger(__name__)
 
 @rank_zero_only
 def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefix="train"):
+    # Remove AP metrics as they require separate logging logics
+    data_copy = {**data}
+    data_copy.pop('coco_eval_bbox', None)
+
     main_metrics = ("loss", "loss_ce", "loss_bbox", "loss_giou", "class_error", "cardinality_error_unscaled")
     log_dict = dict()
-    data_copy = {**data}
     for key, value in data_copy.items():
         if isinstance(value, SmoothedValue):
             data_copy[key] = value.global_avg
@@ -69,6 +72,29 @@ def log_to_wandb(run, data, extra_data=None, global_step=None, epoch=None, prefi
 
     if global_step is not None:
         log_dict[f"{prefix}-metrics/global_step"] = global_step
+
+    run.log(log_dict)
+
+
+@rank_zero_only
+def log_ap_to_wandb(run, stats, epoch=None, prefix=None):
+    """Log AP metrics to WandB"""
+    metrics = dict(
+       mAP=stats[0],
+       AP_50=stats[1],
+       AP_75=stats[2],
+       AP_S=stats[3],
+       AP_M=stats[4],
+       AP_L=stats[5],
+    )
+
+    log_dict = dict()
+    if prefix is not None:
+        for key, value in metrics.items():
+            log_dict[f"{prefix}/{key}"] = value
+    
+    if epoch is not None:
+        log_dict[f"{prefix}/epoch"] = epoch
 
     run.log(log_dict)
 
@@ -219,10 +245,6 @@ class MetricLogger(object):
                     data_time=float(str(data_time)),
                     memory=torch.cuda.max_memory_allocated() / MB
                 )
-                # print(log_msg.format(
-                #     i, len(iterable), global_step=global_step, eta=eta_string,
-                #     meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
-                # ))
                 # Log to wandb
                 if self.wandb_run is not None:
                     log_to_wandb(
@@ -233,6 +255,11 @@ class MetricLogger(object):
                         epoch=epoch,
                         prefix=prefix
                     )
+                else:  # Otherwise, log to console
+                    print(log_msg.format(
+                        i, len(iterable), global_step=global_step, eta=eta_string,
+                        meters=str(self), iter_time=str(iter_time), data_time=str(data_time), memory=extra_data["memory"]
+                    ))
             i += 1
             if global_step is not None:
                 global_step += 1  # Increase the global step

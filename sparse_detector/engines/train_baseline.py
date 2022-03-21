@@ -24,7 +24,7 @@ from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
-from sparse_detector.utils.logging import log_to_wandb
+from sparse_detector.utils.logging import log_ap_to_wandb, log_to_wandb
 
 
 @click.command("train_baseline")
@@ -182,7 +182,7 @@ def main(
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
             # extra checkpoint before LR drop and every 100 epochs
             if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 100 == 0:
-                checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}_step-{global_step:08}.pth')
+                checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
             for checkpoint_path in checkpoint_paths:
                 dist_utils.save_on_master({
                     'model': model_without_ddp.state_dict(),
@@ -202,6 +202,7 @@ def main(
         )
         if dist_utils.is_main_process():
             log_to_wandb(wandb_run, test_stats, epoch=epoch, prefix="val-epoch")
+            log_ap_to_wandb(wandb_run, test_stats.get("coco_eval_bbox"), epoch=epoch, prefix="val-AP")
 
         log_stats = {
             **{f'train_{k}': v for k, v in train_stats.items()},
@@ -220,7 +221,7 @@ def main(
                 (exp_dir / 'eval').mkdir(exist_ok=True)
                 if "bbox" in coco_evaluator.coco_eval:
                     filenames = ['latest.pth']
-                    if epoch % 50 == 0:
+                    if epoch % 10 == 0:
                         filenames.append(f'{epoch:03}.pth')
                     for name in filenames:
                         torch.save(coco_evaluator.coco_eval["bbox"].eval, exp_dir / "eval" / name)

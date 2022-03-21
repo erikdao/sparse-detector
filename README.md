@@ -17,6 +17,7 @@ Our implementation
 DETR origianl implementation
 - Some other things to do: include mAP plots on W&B, explore evaluation results, create visualizations.
 
+
 ### March 14, 2022
 - It turned out that refactoring took more time than expected. The job now is to integrate W&B logging. The quick way to do so is to integrate logging right into the current `MetricLogger` class, which seems to be messy.
 - Logging to W&B is working, but we need to handle the **global_step** problem. Currently, its value is not correct.
