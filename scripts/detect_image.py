@@ -3,7 +3,6 @@ Run detection model with input image(s) and get the results
 """
 import os
 import sys
-from typing import Any, Tuple
 
 import torch
 import torchvision.transforms as pth_transform

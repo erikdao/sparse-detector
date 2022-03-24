@@ -127,7 +127,10 @@ def main(image_path, checkpoint_path, seed):
     enc_attn_weights = enc_attn_weights[0]
     dec_attn_weights = dec_attn_weights[0]
 
+    import pdb; pdb.set_trace()
+
     # get the feature map shape
+    # Here we get the feature from the last block in the last layer of ResNet backbone
     h, w = conv_features['3'].tensors.shape[-2:]
 
     queries = keep.nonzero()
