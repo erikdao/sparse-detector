@@ -143,7 +143,7 @@ def main(image_path, checkpoint_path, seed):
         ax = axes.flatten()[i]
         if i % 2 == 0:
             attn, idx = item
-            ax.imshow(attn)
+            ax.imshow(attn, interpolation='none', vmin=0, vmax=1.)
             ax.set_title(f'query id: {idx.item()}')
         else:
             idx = items[i-1][1]
@@ -155,7 +155,7 @@ def main(image_path, checkpoint_path, seed):
         ax.axis('off')
     fig.tight_layout()
 
-    fig.savefig(f"temp/mha_{image_id}.png", bbox_inches="tight")
+    fig.savefig(f"temp/mha_{image_id}_scaled.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
