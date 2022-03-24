@@ -14,7 +14,6 @@ import click
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import ImageGrid
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
