@@ -50,7 +50,7 @@ def scaled_dot_product_attention(
     return output, attn
 
 
-class MultiheadAttention(nn.Module):
+class SparseMultiheadAttention(nn.Module):
     """
     A simplified implementation of multihead attention, support sparse activation functions
     besides softmax
@@ -83,9 +83,15 @@ class MultiheadAttention(nn.Module):
 
     def forward(
         self, query: Tensor, key: Tensor, value: Tensor,
+        attn_mask: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
         average_attn_weights: bool = True
     ) -> Tuple[Tensor, Optional[Tensor]]:
+        """
+        TODO: Implement the missing logics with attn_mask as in Pytorch's implementation.
+        Technically, DETR forward pass doesn't use attn_mask (it's all zeros). However, it might have a role
+        during the backward pass so it's better to implement the logic.
+        """
         is_batched = query.dim() == 3
 
         # setup shape variables

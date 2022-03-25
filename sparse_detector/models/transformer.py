@@ -14,6 +14,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from sparse_detector.models.attention import SparseMultiheadAttention
+
 
 class Transformer(nn.Module):
 
@@ -21,7 +23,7 @@ class Transformer(nn.Module):
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False,
-                 decoder_mha=nn.MultiheadAttention):
+                 decoder_mha=SparseMultiheadAttention):
         super().__init__()
 
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
@@ -192,7 +194,7 @@ class TransformerEncoderLayer(nn.Module):
 class TransformerDecoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 activation="relu", normalize_before=False, mha_layer=nn.MultiheadAttention):
+                 activation="relu", normalize_before=False, mha_layer=None):
         super().__init__()
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = mha_layer(d_model, nhead, dropout=dropout)
