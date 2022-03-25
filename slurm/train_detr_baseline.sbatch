@@ -21,6 +21,6 @@ torchrun --nproc_per_node=6 $SCRIPT_DIR/train_baseline.py \
     --coco-path data/COCO \
     --output-dir checkpoints --seed $SEED \
     --batch-size 6 --num-workers 12 \
-    --exp-name "baseline_detr" \
-    --wandb-id "2g7b0mfo" \
-    --resume-from-checkpoint "./checkpoints/baseline_detr/checkpoint.pth"
+    --exp-name "baseline_detr_sparse-mha"
+    // --wandb-id "2g7b0mfo" \
+    // --resume-from-checkpoint "./checkpoints/baseline_detr/checkpoint.pth"

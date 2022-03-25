@@ -9,7 +9,10 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
 ### March 25, 2022
-- We continue to test the custom `MultiheadAttention`
+- We continue to test the custom `MultiheadAttention`.
+- We've add a `decoder_mha` parameter to the Transformer class allowing to specify which type of attention layer the model is going to use. By default, it's the `nn.MultiheadAttention`. We've also completed implementing the `SparseMultiheadAttention` which supports sparse activation function `sparsemax`. The implementation is similar (and *simplified*) to Pytorch's implementation.
+- A quick test with the `visualize_attentions` script, the forward pass of the whole model with the new custom MHA layer is successful.
+- We'll run the `baseline_detr` training for 25 epochs to test if the new implementation (by default with softmax) is working properly.
 
 ### March 24, 2022
 - After a discussion with our supervisor, we believe the best way to incorporate `sparsemax` into the current codebase is to create a custom MHA module that use sparse max. This custom MHA should then be used in the place of the current `self.multihead_attn` of the `TransformerDecoderLayer`.
