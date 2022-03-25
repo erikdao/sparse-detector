@@ -27,7 +27,7 @@ def scaled_dot_product_attention(
     beside softmax
     """
     B, Nt, E = q.shape
-    q = q / math.sqrt(E)
+    q = q / math.sqrt(E)  # Normalisation
     # (B, Nt, E) x (B, E, Ns) -> (B, Nt, Ns)
     attn = torch.bmm(q, k.transpose(-2, -1))
     if attn_mask is not None:
@@ -102,6 +102,23 @@ class SparseMultiheadAttention(nn.Module):
 
         # compute in-projection
         q, k, v = F._in_projection_packed(query, key, value, self.in_proj_weight, self.in_proj_bias)
+
+        # prepare attention mask
+        if attn_mask is not None:
+            if attn_mask.dtype == torch.uint8:
+                attn_mask = attn_mask.to(torch.bool)
+            # ensure attention mask's dim is 3
+            if attn_mask.dim() == 2:
+                correct_2d_size = (tgt_len, src_len)
+                if attn_mask.shape != correct_2d_size:
+                    raise RuntimeError(f"The shape of the 2D attn_mask is {attn_mask.shape}, but should be {correct_2d_size}.")
+                attn_mask = attn_mask.unsqueeze(0)
+            elif attn_mask.dim() == 3:
+                correct_3d_size = (bsz * self.num_heads, tgt_len, src_len)
+            if attn_mask.shape != correct_3d_size:
+                raise RuntimeError(f"The shape of the 3D attn_mask is {attn_mask.shape}, but should be {correct_3d_size}.")
+            else:
+                raise RuntimeError(f"attn_mask's dimension {attn_mask.dim()} is not supported")
 
         # prep key padding mask
         if key_padding_mask is not None and key_padding_mask.dtype == torch.uint8:

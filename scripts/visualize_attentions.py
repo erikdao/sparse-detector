@@ -155,7 +155,7 @@ def main(image_path, checkpoint_path, seed):
         ax.axis('off')
     fig.tight_layout()
 
-    fig.savefig(f"temp/mha_{image_id}_scaled.png", bbox_inches="tight")
+    fig.savefig(f"temp/mha_{image_id}_scaled-0-max.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
