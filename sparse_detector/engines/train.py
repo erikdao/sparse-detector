@@ -22,15 +22,18 @@ from sparse_detector.configs import load_base_configs
 from sparse_detector.utils import misc as utils
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
+from sparse_detector.models.utils import describe_model
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.engines.base import build_detr_optims, train_one_epoch, evaluate
 from sparse_detector.utils.logging import log_ap_to_wandb, log_to_wandb
+from sparse_detector.models.attention import VALID_ACTIVATION
 
 
-@click.command("train_baseline")
+@click.command("train_detr")
 @click.option('--config', default='', help="Path to config file")
 @click.option('--exp-name', default=None, help='Experiment name. Need to be set')
 @click.option('--seed', default=42, type=int)
+@click.option('--decoder-act', default='softmax', type=str, help='Activation function for the decoder MH cross-attention')
 @click.option('--lr', default=1e-4, type=float, help="Transformer detector learing rate")
 @click.option('--lr-backbone', default=1e-5, type=float, help="Backbone learning rate")
 @click.option('--batch-size', default=8, type=int, help="Batch size per GPU")
@@ -63,8 +66,9 @@ from sparse_detector.utils.logging import log_ap_to_wandb, log_to_wandb
 @click.option('--start-epoch', default=0, type=int, help='start epoch')
 @click.option('--num-workers', default=12, type=int)
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
-@click.option('--wandb-id', default=None, help="Run ID for resume")
 @click.option('--wandb-log/--no-wandb-log', default=True, help="Whether to enable logging to W&B")
+@click.option('--wandb-group', default=None, help="The group for experiment on W&B")
+@click.option('--wandb-id', default=None, help="Run ID for resume")
 @click.pass_context
 def main(
     ctx, config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
@@ -72,8 +76,11 @@ def main(
     hidden_dim, dropout, nheads, num_queries, pre_norm, aux_loss, set_cost_class,
     set_cost_bbox, set_cost_giou, bbox_loss_coef, giou_loss_coef, eos_coef,
     dataset_file, coco_path, output_dir, resume_from_checkpoint, start_epoch,
-    num_workers, dist_url, wandb_id, wandb_log
+    num_workers, dist_url, wandb_id, wandb_log, wandb_group, decoder_act
 ):
+    if decoder_act not in VALID_ACTIVATION:
+        raise ValueError(f"Unsupported decoder activation: {decoder_act}")
+
     # TODO: Update default configs with ctx.params
     args = locals()
     dist_config = dist_utils.init_distributed_mode(dist_url)
@@ -91,6 +98,9 @@ def main(
         if wandb_id is not None:
             wandb_configs["id"] = wandb_id
             wandb_configs["resume"] = True
+
+        if wandb_group is not None:
+            wandb_configs["group"] = wandb_group
 
         # Local config
         config_to_log = {**args}
@@ -132,7 +142,8 @@ def main(
         nheads=nheads,
         pre_norm=pre_norm,
         dataset_file=dataset_file,
-        device=device
+        device=device,
+        decoder_act=decoder_act
     )
     model.to(device)
 
@@ -141,7 +152,7 @@ def main(
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
         model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('Number of params:', n_parameters)
+    describe_model(model_without_ddp)
 
     print("Building datasets and data loaders...")
     data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(

@@ -24,7 +24,8 @@ def build_model(
     nheads: Optional[int] = 8,
     pre_norm: Optional[bool] = True,
     dataset_file: Optional[str] = 'coco',
-    device: Optional[Any] = None
+    device: Optional[Any] = None,
+    decoder_act: Optional[str] = None,
 ):
     return build(
         backbone,
@@ -48,5 +49,6 @@ def build_model(
         nheads=nheads,
         pre_norm=pre_norm,
         dataset_file=dataset_file,
-        device=device
+        device=device,
+        decoder_act=decoder_act
     )

@@ -23,7 +23,8 @@ class Transformer(nn.Module):
                  num_decoder_layers=6, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False,
-                 decoder_mha=SparseMultiheadAttention):
+                 decoder_mha=SparseMultiheadAttention,
+                 decoder_act: Optional[str] = None,):
         super().__init__()
 
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
@@ -36,7 +37,7 @@ class Transformer(nn.Module):
         # SparseMultiheadAttention for sparse attention
         decoder_layer = TransformerDecoderLayer(
             d_model, nhead, dim_feedforward, dropout, activation,
-            normalize_before, mha_layer=decoder_mha)
+            normalize_before, mha_layer=decoder_mha, cross_attn_activation=decoder_act)
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
                                           return_intermediate=return_intermediate_dec)
@@ -194,10 +195,14 @@ class TransformerEncoderLayer(nn.Module):
 class TransformerDecoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
-                 activation="relu", normalize_before=False, mha_layer=None):
+                 activation="relu", normalize_before=False, mha_layer=None,
+                 cross_attn_activation="softmax"):
         super().__init__()
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.multihead_attn = mha_layer(d_model, nhead, dropout=dropout)
+
+        self.cross_attn_activation = cross_attn_activation
+        print(f"Cross-attention activation: {cross_attn_activation}")
+        self.multihead_attn = mha_layer(d_model, nhead, dropout=dropout, activation=cross_attn_activation)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
@@ -287,7 +292,8 @@ def build_transformer(
     dec_layers: int = 6,
     dropout: float = 0.1,
     nheads: int = 8,
-    pre_norm: bool = True
+    pre_norm: bool = True,
+    decoder_act: str = None
 ):
     return Transformer(
         d_model=hidden_dim,
@@ -298,6 +304,7 @@ def build_transformer(
         num_decoder_layers=dec_layers,
         normalize_before=pre_norm,
         return_intermediate_dec=True,
+        decoder_act=decoder_act
     )
 
 

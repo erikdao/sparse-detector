@@ -284,7 +284,8 @@ def build(
     nheads: Optional[int] = 8,
     pre_norm: Optional[bool] = True,
     dataset_file: Optional[str] = 'coco',
-    device: Optional[Any] = None
+    device: Optional[Any] = None,
+    decoder_act: Optional[str] = None,
 ) -> Any:
     # the `num_classes` naming here is somewhat misleading.
     # it indeed corresponds to `max_obj_id + 1`, where max_obj_id
@@ -307,6 +308,7 @@ def build(
         dropout=dropout,
         nheads=nheads,
         pre_norm=pre_norm,
+        decoder_act=decoder_act
     )
 
     model = DETR(

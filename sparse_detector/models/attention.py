@@ -2,6 +2,7 @@
 Sparse attention modules
 """
 import math
+from multiprocessing.sharedctypes import Value
 from typing import Tuple, Optional
 
 import torch
@@ -12,6 +13,9 @@ from torch.nn.parameter import Parameter
 from torch.nn.init import xavier_uniform_, constant_
 
 from entmax import sparsemax
+
+
+VALID_ACTIVATION = ['softmax', 'sparsemax', 'tva']
 
 
 def tvmax2d(x) -> None:
@@ -34,14 +38,15 @@ def scaled_dot_product_attention(
         attn += attn_mask
     
     # This is the HEART of the first sparse experiment
-    if activation == 'softmax':
+    if activation not in VALID_ACTIVATION:
+        raise RuntimeError(f"Unsupported activation function {activation}")
+    elif activation == 'softmax':
         attn = F.softmax(attn, dim=-1)
     elif activation == 'sparsemax':
         attn = sparsemax(attn, dim=-1)
     elif activation == 'tva':  # Total variation 2D
         attn = tvmax2d(attn)
-    else:
-        raise ValueError(f"Unsupported activation function {activation}")
+        
 
     if dropout_p > 0.0:
         attn = F.dropout(attn, p=dropout_p)
