@@ -24,4 +24,6 @@ torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
     --output-dir checkpoints --seed $SEED \
     --batch-size 6 --num-workers 12 \
     --exp-name "decoder_sparsemax_cross-mha" \
-    --wandb-group "decoder_sparsemax"
+    --wandb-group "decoder_sparsemax" \
+    --wandb-id "1r80hqsy" \
+    --resume-from-checkpoint "checkpoints/decoder_sparsemax_cross-mha/checkpoint.pth"

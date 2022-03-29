@@ -77,7 +77,8 @@ def main(image_path, checkpoint_path, seed):
         dim_feedforward=2048, dropout=0.1, num_queries=100,
         bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
         set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
-        nheads=8, pre_norm=True, dataset_file='coco', device=device
+        nheads=8, pre_norm=True, dataset_file='coco', device=device,
+        decoder_act='sparsemax'
     )
 
     click.echo("Load model from checkpoint")
@@ -143,7 +144,7 @@ def main(image_path, checkpoint_path, seed):
         ax = axes.flatten()[i]
         if i % 2 == 0:
             attn, idx = item
-            ax.imshow(attn, interpolation='none', vmin=0, vmax=1.)
+            ax.imshow(attn)  # interpolation='none', vmin=0, vmax=1.)
             ax.set_title(f'query id: {idx.item()}')
         else:
             idx = items[i-1][1]
@@ -155,7 +156,7 @@ def main(image_path, checkpoint_path, seed):
         ax.axis('off')
     fig.tight_layout()
 
-    fig.savefig(f"temp/mha_{image_id}_scaled-0-max.png", bbox_inches="tight")
+    fig.savefig(f"temp/mha_{image_id}_sparsemax.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
