@@ -20,3 +20,7 @@ checkpoints/
 wandb/
 temp/
 misc/
+
+outputs/
+outputs/*
+!outputs/README.md
