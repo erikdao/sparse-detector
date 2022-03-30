@@ -14,12 +14,14 @@ from torch.nn.init import xavier_uniform_, constant_
 
 from entmax import sparsemax
 
+from sparse_detector.models.tvmax import TV2DFunction
 
-VALID_ACTIVATION = ['softmax', 'sparsemax', 'tva']
+VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax']
 
 
 def tvmax2d(x) -> None:
-    pass
+    tvmax = TV2DFunction.apply
+    return tvmax(x)
 
 
 def scaled_dot_product_attention(
@@ -44,7 +46,7 @@ def scaled_dot_product_attention(
         attn = F.softmax(attn, dim=-1)
     elif activation == 'sparsemax':
         attn = sparsemax(attn, dim=-1)
-    elif activation == 'tva':  # Total variation 2D
+    elif activation == 'tvmax':  # Total variation 2D
         attn = tvmax2d(attn)
         
 

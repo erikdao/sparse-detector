@@ -8,6 +8,10 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+### March 30, 2022
+- I'm at Arlanda waiting for my flight to Frankfurt, Singapore then Hanoi
+- We're working on the implementation of TVMax. There is an [existing implementation](https://github.com/deep-spin/TVmax) that we'll try first.
+
 ### March 28, 2022
 - The baseline training has stopped due to the excessive time on Berzelius. We'll restart it.
 - The sparsemax version training follows the trends of the baseline, with lower performance. This is expected. We'll need to think about which kind of parameter tuning we can/should do. Also, we'll look more closely into the attention maps.
