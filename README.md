@@ -12,6 +12,7 @@ This section contains the log of the works that I have done in this project. I'm
 - I'm at Arlanda waiting for my flight to Frankfurt, Singapore then Hanoi
 - We're working on the implementation of TVMax. There is an [existing implementation](https://github.com/deep-spin/TVmax) that we'll try first.
 - Seem that the default implementation of `TV2DFunction` cannot be directly plugged into our pipeline due to the mismatch of input shapes. Need to look into this problem.
+- The default implementation of `TVMax` doesn't seem to operate on batched tensor. So a hack we're currently doing is to iteratively apply the `tvmax` function over all slices of the tensor. However, it makes the training hang after calling the function for 5, 6 times. The GPU consumption is just around `8GB/40GB`. We're investigating this problem.
 
 ### March 28, 2022
 - The baseline training has stopped due to the excessive time on Berzelius. We'll restart it.

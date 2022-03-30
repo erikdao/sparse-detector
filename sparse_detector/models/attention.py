@@ -19,9 +19,17 @@ from sparse_detector.models.tvmax import TV2DFunction
 VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax']
 
 
-def tvmax2d(x) -> None:
+def tvmax2d(X: Tensor) -> None:
+    """
+    X: (B, Nt, Ns)
+    """
+    print(f"tvmax2d: X: {X.size()}")
     tvmax = TV2DFunction.apply
-    return tvmax(x)
+    # Hacky way, need to figure out how to make tvmax works on batch
+    for i in range(X.size(0)):
+        X[i] = tvmax(X[i])
+    
+    return X
 
 
 def scaled_dot_product_attention(
