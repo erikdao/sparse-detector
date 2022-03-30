@@ -11,6 +11,7 @@ This section contains the log of the works that I have done in this project. I'm
 ### March 30, 2022
 - I'm at Arlanda waiting for my flight to Frankfurt, Singapore then Hanoi
 - We're working on the implementation of TVMax. There is an [existing implementation](https://github.com/deep-spin/TVmax) that we'll try first.
+- Seem that the default implementation of `TV2DFunction` cannot be directly plugged into our pipeline due to the mismatch of input shapes. Need to look into this problem.
 
 ### March 28, 2022
 - The baseline training has stopped due to the excessive time on Berzelius. We'll restart it.
