@@ -90,9 +90,9 @@ def main(
     print("git:\n  {}\n".format(utils.get_sha()))
     print(args)
 
-    print("Initialize WandB logging...")
     wandb_run = None
     if dist_utils.is_main_process() and wandb_log:
+        print("Initialize WandB logging...")
         wandb_configs = default_configs.get("wandb")
         wandb_configs["name"] = exp_name
         if wandb_id is not None:
@@ -124,7 +124,7 @@ def main(
         backbone,
         lr_backbone,
         dilation,
-        True,  # return_interm_layers: boo
+        True,  # return_interm_layers: bool
         position_embedding,
         hidden_dim,
         enc_layers,

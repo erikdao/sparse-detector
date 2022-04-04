@@ -11,4 +11,5 @@ torchrun --nproc_per_node=1 $SCRIPT_DIR/train.py \
     --output-dir checkpoints --seed $SEED \
     --batch-size 6 --num-workers 12 \
     --exp-name "tvmax_test" \
-    --epochs 4
+    --epochs 4 \
+    --no-wandb-log
