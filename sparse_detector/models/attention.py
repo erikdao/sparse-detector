@@ -23,7 +23,6 @@ def tvmax2d(X: Tensor) -> None:
     """
     X: (B, Nt, Ns)
     """
-    print(f"tvmax2d: X: {X.size()}")
     tvmax = TV2DFunction.apply
     # Hacky way, need to figure out how to make tvmax works on batch
     for i in range(X.size(0)):

@@ -1,6 +1,7 @@
 """
 Visualizing self-attention of the model
 """
+import math
 import os
 import sys
 
@@ -14,6 +15,7 @@ import click
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
@@ -40,6 +42,15 @@ def rescale_bboxes(out_bbox, size):
     b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
     return b
 
+
+def rescale_bboxes_for_ax(bbox, img_size, canvas_size):
+    imw, imh = img_size
+    cw, ch = canvas_size
+    w_scale, h_scale = imw * 1.0 / cw, imh * 1.0 / ch
+    xmin, ymin, xmax, ymax = bbox
+    b = (xmin * 1.0 / w_scale, ymin * 1.0 / h_scale, xmax * 1.0 / w_scale, ymax * 1.0 / h_scale)
+    return b
+    
 
 @click.command()
 @click.argument('image_path', type=click.File('rb'))
@@ -135,26 +146,44 @@ def main(image_path, checkpoint_path, seed):
     queries = keep.nonzero()
     items = []
     for idx, bbox in zip(queries, bboxes_scaled):
-        items.append((dec_attn_weights[0, idx].view(h, w).detach().cpu(), idx))
+        items.append((dec_attn_weights[0, idx].view(h, w).detach().cpu().numpy(), idx))
         items.append(bbox)
     
-    n = int(np.ceil(np.sqrt(len(items))))
-    fig, axes = plt.subplots(nrows=n, ncols=n, figsize=(20, 13))
-    for i, item in enumerate(items):
-        ax = axes.flatten()[i]
-        if i % 2 == 0:
-            attn, idx = item
-            ax.imshow(attn)  # interpolation='none', vmin=0, vmax=1.)
-            ax.set_title(f'query id: {idx.item()}')
+    ncols = 4
+    if len(items) > 12:
+        ncols = 6
+    nrows = len(items) // ncols
+    if (len(items) % ncols) != 0:
+        nrows = len(items) // ncols + 1
+
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 4))
+
+    for idx, (ax, item) in enumerate(zip(axes.flat, items)):
+        if idx % 2 == 0:
+            attn, qid = item
+            ax.imshow(attn)
+            bbox = items[idx+1]
+            ax.set_title(f"query {qid.item()}")
         else:
-            idx = items[i-1][1]
+            qid = items[idx-1][1]
             ax.imshow(image)
-            xmin, ymin, xmax, ymax = item
-            ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                                fill=False, color='red', linewidth=2))
-            ax.set_title(CLASSES[probas[idx].argmax()])
-        ax.axis('off')
-    fig.tight_layout()
+            bbox = item
+            ax.set_title(CLASSES[probas[qid].argmax()])
+        ax_h, ax_w = ax.bbox.height, ax.bbox.width
+        print(f"ax_h={ax_h}; ax_w={ax_w}\t image size: {image.size}")
+
+        if idx % 2 == 0:
+            (xl_min, xl_max) = ax.get_xlim()
+            (yl_max, yl_min) = ax.get_ylim()
+            w = abs(xl_min) + abs(xl_max)
+            h = abs(yl_min) + abs(yl_max)
+            bbox = rescale_bboxes_for_ax(bbox, image.size, (w, h))
+
+        xmin, ymin, xmax, ymax = bbox
+        rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                        fill=False, color='red', linewidth=2, zorder=10000000, axes=ax)
+        ax.add_artist(rect)
+        # ax.axis('off')
 
     fig.savefig(f"temp/mha_{image_id}_sparsemax.png", bbox_inches="tight")
 
