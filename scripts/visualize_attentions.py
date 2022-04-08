@@ -44,6 +44,9 @@ def rescale_bboxes(out_bbox, size):
 
 
 def rescale_bboxes_for_ax(bbox, img_size, canvas_size):
+    """
+    Rescale the predicted bounding boxes for visualization on the attention maps
+    """
     imw, imh = img_size
     cw, ch = canvas_size
     w_scale, h_scale = imw * 1.0 / cw, imh * 1.0 / ch
@@ -159,6 +162,7 @@ def main(image_path, checkpoint_path, seed):
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 4))
 
     for idx, (ax, item) in enumerate(zip(axes.flat, items)):
+        qid = None
         if idx % 2 == 0:
             attn, qid = item
             ax.imshow(attn)
@@ -183,6 +187,11 @@ def main(image_path, checkpoint_path, seed):
         rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                         fill=False, color='red', linewidth=2, zorder=10000000, axes=ax)
         ax.add_artist(rect)
+        cl = probas[qid].argmax()
+        prob = probas[qid, cl]
+        text = f'{CLASSES[cl]}: {prob.item():0.2f}'
+        ax.text(xmin, ymin, text, fontsize=12,
+                bbox=dict(facecolor='yellow', alpha=0.5))
         # ax.axis('off')
 
     fig.savefig(f"temp/mha_{image_id}_sparsemax.png", bbox_inches="tight")
