@@ -1,0 +1,1 @@
+from sparse_detector.visualizations.palette import ColorPalette

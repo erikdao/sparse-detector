@@ -1,6 +1,7 @@
 """
 Visualizing self-attention of the model
 """
+import json
 import math
 import os
 import sys
@@ -21,6 +22,7 @@ from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
 from sparse_detector.datasets.coco import NORMALIZATION, CLASSES
 from sparse_detector.datasets import transforms as T
+from sparse_detector.visualizations import ColorPalette
 
 
 # colors for visualization
@@ -55,11 +57,70 @@ def rescale_bboxes_for_ax(bbox, img_size, canvas_size):
     return b
     
 
+def plot_attn_results(predictions, probabilities, image, image_size=None, groundtruth=None, filename=None):
+    imw, imh = image_size
+    # Figure out a good layout for the figure
+    ncols = 4
+    if len(predictions) > 12:
+        ncols = 6
+    nrows = len(predictions) // ncols
+    if (len(predictions) % ncols) != 0:
+        nrows = len(predictions) // ncols + 1
+
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 6, nrows * 4.5))
+
+    for idx, (ax, item) in enumerate(zip(axes.flat, predictions)):
+        qid = None
+        if idx % 2 == 0:
+            attn, qid = item
+            ax.imshow(attn)
+            ax.set_title(f"query {qid.item()}")
+
+            # When showing the attention maps, matplotlib create a canvas of different scale compared
+            # with the case when an actual image is shown.
+            bbox = predictions[idx+1]
+            (xl_min, xl_max) = ax.get_xlim()
+            (yl_max, yl_min) = ax.get_ylim()
+            w = abs(xl_min) + abs(xl_max)
+            h = abs(yl_min) + abs(yl_max)
+            bbox = rescale_bboxes_for_ax(bbox, (imw, imh), (w, h))
+        else:
+            qid = predictions[idx-1][1]
+            ax.imshow(image)
+            bbox = item
+            ax.set_title(CLASSES[probabilities[qid].argmax()])
+        
+        # Draw the groundtruth bounding boxes
+        for gt_bbox in groundtruth:
+            xmin, ymin, width, height = gt_bbox
+            rect = patches.Rectangle((xmin, ymin), width, height,
+                            fill=False, color=ColorPalette.GREEN, linewidth=2, zorder=1000, axes=ax)
+            ax.add_artist(rect)
+
+        # Draw the bounding box predictions
+        xmin, ymin, xmax, ymax = bbox
+        rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                        fill=False, color=ColorPalette.RED, linewidth=2, zorder=1000, axes=ax)
+        ax.add_artist(rect)
+
+        # Annotate the class and probability
+        if idx % 2 != 0:
+            cl = probabilities[qid].argmax()
+            prob = probabilities[qid, cl]
+            text = f'{CLASSES[cl]}: {prob.item():0.2f}'
+            ax.text(xmin, ymin, text, fontsize=10,
+                    bbox=dict(facecolor=ColorPalette.YELLOW, alpha=0.5))
+        ax.axis('off')
+
+        fig.savefig(filename, bbox_inches="tight")
+
+
 @click.command()
 @click.argument('image_path', type=click.File('rb'))
 @click.argument('checkpoint_path', type=click.File('rb'))
 @click.option('--seed', type=int, default=42)
-def main(image_path, checkpoint_path, seed):
+@click.option('--decoder-act', type=str, default='sparsemax')
+def main(image_path, checkpoint_path, seed, decoder_act):
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -67,6 +128,14 @@ def main(image_path, checkpoint_path, seed):
     click.echo("Reading input image")
     image = Image.open(image_path)
     image_id = str(image_path.name).split("/")[-1].split(".")[0]
+
+    # Getting groundtruth annotations
+    with open("data/COCO/annotations/instances_val2017.json", "r") as f:
+        data = json.load(f)
+        annotations = data["annotations"]
+        img_id = int(image_id.lstrip("0"))
+        img_annos = list(filter(lambda x: x['image_id'] == img_id, annotations))
+        image_bboxes = [anno['bbox'] for anno in img_annos]
 
     # The customer RandomResize outputs both the image and target even if
     # the target is None, so we perform the transform separately and only
@@ -92,7 +161,7 @@ def main(image_path, checkpoint_path, seed):
         bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
         set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
         nheads=8, pre_norm=True, dataset_file='coco', device=device,
-        decoder_act='sparsemax'
+        decoder_act=decoder_act
     )
 
     click.echo("Load model from checkpoint")
@@ -151,50 +220,8 @@ def main(image_path, checkpoint_path, seed):
     for idx, bbox in zip(queries, bboxes_scaled):
         items.append((dec_attn_weights[0, idx].view(h, w).detach().cpu().numpy(), idx))
         items.append(bbox)
-    
-    ncols = 4
-    if len(items) > 12:
-        ncols = 6
-    nrows = len(items) // ncols
-    if (len(items) % ncols) != 0:
-        nrows = len(items) // ncols + 1
 
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 5, nrows * 4))
-
-    for idx, (ax, item) in enumerate(zip(axes.flat, items)):
-        qid = None
-        if idx % 2 == 0:
-            attn, qid = item
-            ax.imshow(attn)
-            bbox = items[idx+1]
-            ax.set_title(f"query {qid.item()}")
-        else:
-            qid = items[idx-1][1]
-            ax.imshow(image)
-            bbox = item
-            ax.set_title(CLASSES[probas[qid].argmax()])
-        ax_h, ax_w = ax.bbox.height, ax.bbox.width
-        print(f"ax_h={ax_h}; ax_w={ax_w}\t image size: {image.size}")
-
-        if idx % 2 == 0:
-            (xl_min, xl_max) = ax.get_xlim()
-            (yl_max, yl_min) = ax.get_ylim()
-            w = abs(xl_min) + abs(xl_max)
-            h = abs(yl_min) + abs(yl_max)
-            bbox = rescale_bboxes_for_ax(bbox, image.size, (w, h))
-
-        xmin, ymin, xmax, ymax = bbox
-        rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                        fill=False, color='red', linewidth=2, zorder=10000000, axes=ax)
-        ax.add_artist(rect)
-        cl = probas[qid].argmax()
-        prob = probas[qid, cl]
-        text = f'{CLASSES[cl]}: {prob.item():0.2f}'
-        ax.text(xmin, ymin, text, fontsize=12,
-                bbox=dict(facecolor='yellow', alpha=0.5))
-        # ax.axis('off')
-
-    fig.savefig(f"temp/mha_{image_id}_sparsemax.png", bbox_inches="tight")
+    plot_attn_results(items, probas, image, image.size, image_bboxes, f"temp/mha_{image_id}_{decoder_act}.png")
 
 
 if __name__ == "__main__":
