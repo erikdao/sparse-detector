@@ -129,6 +129,9 @@ def main(image_path, checkpoint_path, seed, decoder_act):
     image = Image.open(image_path)
     image_id = str(image_path.name).split("/")[-1].split(".")[0]
 
+    # click.echo("Ad-hoc crop this image for inspecting the result")
+    # image = image.crop((180, 60, 430, 280))
+
     # Getting groundtruth annotations
     with open("data/COCO/annotations/instances_val2017.json", "r") as f:
         data = json.load(f)
