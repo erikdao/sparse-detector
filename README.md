@@ -9,6 +9,9 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
 
+### April 15, 2022
+- Today, we've added more visualization of intermediate layers from the decoder.
+
 ### April 12, 2022
 - Today, we're going to inspect some more samples with the `sparsemax` model to see if it always attends to the corner of the input images.Through two examples we've looked at, it seems that when there is only a prominent object in the image, `sparsemax` model doesn't really spread its attention to corners. However, there are attentions outside of the bounding boxes of the object.
 

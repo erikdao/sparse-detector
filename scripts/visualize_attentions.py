@@ -120,7 +120,8 @@ def plot_attn_results(predictions, probabilities, image, image_size=None, ground
 @click.argument('checkpoint_path', type=click.File('rb'))
 @click.option('--seed', type=int, default=42)
 @click.option('--decoder-act', type=str, default='sparsemax')
-def main(image_path, checkpoint_path, seed, decoder_act):
+@click.option('--decoder-layer', type=int, default=-1)
+def main(image_path, checkpoint_path, seed, decoder_act, decoder_layer):
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -198,7 +199,7 @@ def main(image_path, checkpoint_path, seed, decoder_act):
         model.transformer.encoder.layers[-1].self_attn.register_forward_hook(
             lambda self, input, output: enc_attn_weights.append(output[1])
         ),
-        model.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
+        model.transformer.decoder.layers[decoder_layer].multihead_attn.register_forward_hook(
             lambda self, input, output: dec_attn_weights.append(output[1])
         ),
     ]
@@ -224,7 +225,7 @@ def main(image_path, checkpoint_path, seed, decoder_act):
         items.append((dec_attn_weights[0, idx].view(h, w).detach().cpu().numpy(), idx))
         items.append(bbox)
 
-    plot_attn_results(items, probas, image, image.size, image_bboxes, f"temp/mha_{image_id}_{decoder_act}.png")
+    plot_attn_results(items, probas, image, image.size, image_bboxes, f"temp/mha_{image_id}_{decoder_act}_dec-layer-{decoder_layer}.png")
 
 
 if __name__ == "__main__":
