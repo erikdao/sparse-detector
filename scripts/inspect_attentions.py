@@ -75,19 +75,20 @@ def main(image_path, checkpoint_path, seed, decoder_act):
     # bboxes_scaled = rescale_bboxes(pred_boxes[0, keep], image.size)
 
     # use lists to store the outputs via up-values
-    conv_features, enc_attn_weights, dec_attn_weights = [], [], []
-
+    attentions = []
+    conv_features = []
     hooks = [
         model.backbone[-2].register_forward_hook(
             lambda self, input, output: conv_features.append(output)
         ),
-        model.transformer.encoder.layers[-1].self_attn.register_forward_hook(
-            lambda self, input, output: enc_attn_weights.append(output[1])
-        ),
-        model.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
-            lambda self, input, output: dec_attn_weights.append(output[1])
-        ),
     ]
+
+    for i in range(6):
+        hooks.append(
+            model.transformer.decoder.layers[i].multihead_attn.register_forward_hook(
+                lambda self, input, output: attentions.append(output[1])
+            )
+        )
 
     # propagate through the model
     outputs = model(input_tensor)
@@ -106,18 +107,20 @@ def main(image_path, checkpoint_path, seed, decoder_act):
 
     # don't need the list anymore
     conv_features = conv_features[0]
-    enc_attn_weights = enc_attn_weights[0]
-    dec_attn_weights = dec_attn_weights[0]
 
     # get the feature map shape
     # Here we get the feature from the last block in the last layer of ResNet backbone
     h, w = conv_features['3'].tensors.shape[-2:]
 
     queries = keep.nonzero()
-    for query in queries:
-        attn = dec_attn_weights[0, query].view(w, h).detach().cpu()
-        attn_gini = gini(attn)
-        print(f"query: {query}, attn: {attn.shape}, gini: {attn_gini}")    
+    for idx, layer_attn in enumerate(attentions):  # Loop through the attention maps for each decoder layer
+        attn_gini = 0.0
+        for query in queries:
+            attn = layer_attn[0, query].view(w, h).detach().cpu()
+            attn_gini += gini(attn)
+        
+        attn_gini /= len(queries)
+        print(f"Layer {idx}: attn_gini={attn_gini}")
 
 
 if __name__ == "__main__":

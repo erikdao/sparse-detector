@@ -11,6 +11,7 @@ This section contains the log of the works that I have done in this project. I'm
 ### April 24, 2022
 - After too much pause, we've restarted the work on this thesis project.
 - We'll try a new activation function `entmax15`, just to see if a *softer* level of sparsity would result in something different.
+- Next,we'll compute the gini index for attention maps in each layers of the model. For a given input image, for each layer, the gini is average across all the queries. We then can report the gini scores for all layers of a model on the validation set.
 
 ### April 15, 2022
 - Today, we've added more visualization of intermediate layers from the decoder.
