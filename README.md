@@ -14,11 +14,12 @@ This section contains the log of the works that I have done in this project. I'm
 - However, as we create different files, scripts in our project, we feel the growing need to being able to load default model configs from files, and create a model instance from those configs. Thus, we spent some times on this technical debt first.
 - Hooray! We've got some first Gini scores of the sparsemax model
 ```
+|-------------|----------------|----------------|----------------|----------------|----------------|----------------|
 | model       | layer 0        | layer 1        | layer 2        | layer 3        | layer 4        | layer 5        |
 |-------------|----------------|----------------|----------------|----------------|----------------|----------------|
 | sparsemax   |0.6796 - 0.2199 |0.5765 - 0.2219 |0.4841 - 0.1883 |0.5874 - 0.1888 |0.4196 - 0.1720 |0.6084 - 0.2047 |
 |-------------|----------------|----------------|----------------|----------------|----------------|----------------|
-| softmax     | 
+| softmax     |0.7407 - 0.0575 |0.7267 - 0.0640 |0.7572 - 0.0626 |0.8083 - 0.0584 |0.7616 - 0.1087 |0.6702 - 0.0794 |
 |-------------|----------------|----------------|----------------|----------------|----------------|----------------|
 ```
 
