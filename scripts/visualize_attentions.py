@@ -23,6 +23,7 @@ from sparse_detector.models.utils import describe_model
 from sparse_detector.datasets.coco import NORMALIZATION, CLASSES
 from sparse_detector.datasets import transforms as T
 from sparse_detector.visualizations import ColorPalette
+from sparse_detector.configs import build_detr_config
 
 
 # colors for visualization
@@ -159,14 +160,11 @@ def main(image_path, checkpoint_path, seed, decoder_act, decoder_layer):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
     click.echo("Building model")
-    model, criterion, postprocessors = build_model(
-        "resnet50", 1e-5, False, True, "sine", 256, 6, 6,
-        dim_feedforward=2048, dropout=0.1, num_queries=100,
-        bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
-        set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
-        nheads=8, pre_norm=True, dataset_file='coco', device=device,
-        decoder_act=decoder_act
-    )
+    configs = build_detr_config(device=device)
+    if decoder_act:
+        configs['decoder_act'] = decoder_act
+
+    model, criterion, postprocessors = build_model(**configs)
 
     click.echo("Load model from checkpoint")
     model.eval()
@@ -214,6 +212,7 @@ def main(image_path, checkpoint_path, seed, decoder_act, decoder_layer):
     conv_features = conv_features[0]
     enc_attn_weights = enc_attn_weights[0]
     dec_attn_weights = dec_attn_weights[0]
+    print(f"dec_attn_weights: {dec_attn_weights.shape}")
 
     # get the feature map shape
     # Here we get the feature from the last block in the last layer of ResNet backbone

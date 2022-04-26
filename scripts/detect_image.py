@@ -109,7 +109,7 @@ def main(image_path, checkpoint_path, iou_threshold):
         dim_feedforward=2048, dropout=0.1, num_queries=100,
         bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
         set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
-        nheads=8, pre_norm=True, dataset_file='coco', device=device
+        nheads=8, pre_norm=True, device=device, decoder_act='sparsemax'
     )
 
     click.echo("Load model from checkpoint")
@@ -125,7 +125,9 @@ def main(image_path, checkpoint_path, iou_threshold):
     pred_boxes = outputs['pred_boxes'].detach().cpu()
 
     probas = pred_logits.softmax(-1)[0, :, :-1]
-    keep = probas.max(-1).values > 0.7
+    # keep = probas.max(-1).values > 0.7
+    keep = torch.max(probas, dim=-1).values > 0.7
+    print(f"pred_logits: {pred_logits.shape}\t pred_boxes: {pred_boxes.shape}\t probas: {probas.shape}\t keep: {keep.shape}")
 
     # convert boxes from [0; 1] to image scales
     bboxes_scaled = rescale_bboxes(pred_boxes[0, keep], image.size)
