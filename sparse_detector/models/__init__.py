@@ -23,7 +23,6 @@ def build_model(
     set_cost_giou: Optional[int] = 2,
     nheads: Optional[int] = 8,
     pre_norm: Optional[bool] = True,
-    dataset_file: Optional[str] = 'coco',
     device: Optional[Any] = None,
     decoder_act: Optional[str] = None,
 ):
@@ -48,7 +47,6 @@ def build_model(
         set_cost_giou=set_cost_giou,
         nheads=nheads,
         pre_norm=pre_norm,
-        dataset_file=dataset_file,
         device=device,
         decoder_act=decoder_act
     )

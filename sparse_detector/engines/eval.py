@@ -84,7 +84,6 @@ def main(
         set_cost_giou=set_cost_giou,
         nheads=nheads,
         pre_norm=pre_norm,
-        dataset_file=dataset_file,
         device=device
     )
     model.to(device)

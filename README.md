@@ -8,6 +8,11 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+
+### April 26, 2022
+- We continue to work on the Gini score.
+- However, as we create different files, scripts in our project, we feel the growing need to being able to load default model configs from files, and create a model instance from those configs. Thus, we spent some times on this technical debt first.
+
 ### April 24, 2022
 - After too much pause, we've restarted the work on this thesis project.
 - We'll try a new activation function `entmax15`, just to see if a *softer* level of sparsity would result in something different.

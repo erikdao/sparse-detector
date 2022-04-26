@@ -4,6 +4,7 @@ model:
     lr_backbone: 1e-4
     dilation: false
     position_embedding: 'sine'
+    return_interm_layers: true
   transformer:
     enc_layers: 6
     dec_layers: 6
@@ -14,6 +15,7 @@ model:
     num_queries: 100
     pre_norm: true
     lr: 1e-5
+    decoder_act: 'softmax'
 
 loss:
   aux_loss: false

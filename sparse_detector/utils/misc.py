@@ -327,3 +327,21 @@ def interpolate(input, size=None, scale_factor=None, mode="nearest", align_corne
         return _new_empty_tensor(input, output_shape)
     else:
         return torchvision.ops.misc.interpolate(input, size, scale_factor, mode, align_corners)
+
+
+from collections.abc import MutableMapping
+
+def _flatten_dict_gen(d, parent_key, sep):
+    for k, v in d.items():
+        new_key = k if parent_key else k
+        if isinstance(v, MutableMapping):
+            yield from flatten_dict(v, new_key, sep=sep).items()
+        else:
+            yield new_key, v
+
+
+def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str = '.'):
+    """
+    Flatten a nested dictionary
+    """
+    return dict(_flatten_dict_gen(d, parent_key, sep))
