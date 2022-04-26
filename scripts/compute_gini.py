@@ -22,7 +22,7 @@ from sparse_detector.utils.metrics import gini
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config
 from sparse_detector.datasets.loaders import build_dataloaders
-
+from sparse_detector.utils.logging import MetricLogger, SmoothedValue
 
 @click.command()
 @click.option('--seed', type=int, default=42)
@@ -32,7 +32,8 @@ from sparse_detector.datasets.loaders import build_dataloaders
 @click.option('--batch-size', default=8, type=int, help="Batch size per GPU")
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
 @click.option('--resume-from-checkpoint', default='', help='resume from checkpoint')
-def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batch_size, dist_url):
+@click.option('--detection-threshold', default=0.7, help='Threshold to filter detection results')
+def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batch_size, dist_url, detection_threshold):
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -57,13 +58,43 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
 
     click.echo("Building dataset")
     data_loader, base_ds = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
+    
+    click.echo("Computing gini")
+    for batch_idx, (samples, targets) in enumerate(data_loader):
+        attentions = []
+        conv_features = []
+        hooks = [model.backbone[-2].register_forward_hook(lambda self, input, output: conv_features.append(output)),]
+
+        for i in range(6):
+            hooks.append(
+                model.transformer.decoder.layers[i].multihead_attn.register_forward_hook(
+                    lambda self, input, output: attentions.append(output[1])
+                )
+            )
+
+        samples = samples.to(device)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        outputs = model(samples)
+        for hook in hooks:
+            hook.remove()
+
+        pred_logits = outputs['pred_logits'].detach() # .cpu()
+        probas = pred_logits.softmax(-1)[0, :, :-1]
+        print(f"probs: {probas.shape}")
+        keep = probas.max(-1).values > detection_threshold
+        queries = keep.nonzero()
+        print(f"#queries: ", queries)
+        h, w = conv_features[0]['3'].tensors.shape[-2:]
+
+        print(f"Batch {batch_idx} --------------------")
+        if batch_idx > 0:
+            break
 
     # convert boxes from [0; 1] to image scales
     # bboxes_scaled = rescale_bboxes(pred_boxes[0, keep], image.size)
 
     # use lists to store the outputs via up-values
-    # attentions = []
-    # conv_features = []
     # hooks = [
     #     model.backbone[-2].register_forward_hook(
     #         lambda self, input, output: conv_features.append(output)
