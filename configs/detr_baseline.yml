@@ -27,22 +27,3 @@ loss:
     bbox_loss_coef: 5
     giou_loss_coef: 2
     eos_coef: 0.1
-
-datasets:
-  dataset_file: 'coco'
-  coco_path: 'data/COCO'
-  batch_size: 6
-  num_workers: 12
-
-trainer:
-  epochs: 300
-  weight_decay: 0.1
-  lr_drop: 200
-  clip_max_norm: 0.1
-  output_dir: ''
-  device: 'cuda'
-  seed: 42
-  resume_from_checkpoint: ''
-  start_epoch: 0
-  world_size: 6
-  dist_url: 'env://'

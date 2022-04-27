@@ -60,9 +60,8 @@ def main(
     dist_config = dist_utils.init_distributed_mode(dist_url)
 
     base_configs = load_base_configs()
-    exp_configs = load_config(config)
     detr_configs = build_detr_config(config, device=device)
-    trainer_configs = exp_configs.get("trainer")
+    trainer_configs = base_configs.get("trainer")
 
     print("Initialized distributed training")
     
@@ -144,8 +143,8 @@ def main(
         lr_scheduler.step()
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
-            # extra checkpoint before LR drop and every 100 epochs
-            if (epoch + 1) % int(trainer_configs['lr_drop']) == 0 or (epoch + 1) % 100 == 0:
+            # extra checkpoint before LR drop and every x epochs
+            if (epoch + 1) % int(trainer_configs['lr_drop']) == 0 or (epoch + 1) % trainer_configs['checkpoint_every'] == 0:
                 checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
             for checkpoint_path in checkpoint_paths:
                 dist_utils.save_on_master({
