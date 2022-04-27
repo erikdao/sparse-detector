@@ -13,6 +13,11 @@ This section contains the log of the works that I have done in this project. I'm
 
 ### April 27, 2022
 - We're taking a look at the `entmax` with learnable alpha, and the `tvmax` implementation to see what should be done first, in terms of, what could get done easier.
+- After 2 hours, we've ended up with the first version of `alpha-entmax` for the MHSA. Currently, the logging doesn't log the value of `alpha` while training, and we don't have a full picture on the `alpha` of different heads in each decoder's layer yet. That's the next step.
+- Meanwhile, we've got some updates on the `entmax15` experiment:
+```
+It seems to be a bit better than the sparsemax model (all the hyperameters are the same between two experiments). Most performance metrics of entmax15 are about 0.4 - 0.5 points better. After 250 epochs, the AP-Small of entmax15 is 1 point better than sparsemax is closing to the baseline. This might suggest that a softer sparsity might be desirable.
+```
 
 ### April 26, 2022
 - We continue to work on the Gini score.
