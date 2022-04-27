@@ -2,7 +2,6 @@
 Sparse attention modules
 """
 import math
-from multiprocessing.sharedctypes import Value
 from typing import Tuple, Optional
 
 import torch
@@ -12,11 +11,11 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.nn.init import xavier_uniform_, constant_
 
-from entmax import sparsemax, entmax15
+from entmax import sparsemax, entmax15, entmax_bisect
 
 from sparse_detector.models.tvmax import TV2DFunction
 
-VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax', 'entmax15']
+VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax', 'entmax15', 'entmax_alpha']
 
 
 def tvmax2d(X: Tensor) -> None:
@@ -33,7 +32,7 @@ def tvmax2d(X: Tensor) -> None:
 
 def scaled_dot_product_attention(
     q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0,
-    activation: str = "softmax"
+    activation: str = "softmax", entmax_alpha: Optional[Tensor] = None
 ) -> Tuple[Tensor, Tensor]:
     """
     Modified version of scaled dot-production attention, support sparse activation functions
@@ -57,6 +56,10 @@ def scaled_dot_product_attention(
         attn = entmax15(attn, dim=-1)
     elif activation == 'tvmax':  # Total variation 2D
         attn = tvmax2d(attn)
+    elif activation == 'entmax_alpha':
+        if entmax_alpha is None:
+            raise ValueError(f"Activation {activation} requires a learnable alpha, i.e., a tensor that has gradients")
+        attn = entmax_bisect(attn, entmax_alpha)
         
 
     if dropout_p > 0.0:
@@ -82,6 +85,13 @@ class SparseMultiheadAttention(nn.Module):
         self.head_dim = embed_dim // num_heads
         self.dropout = dropout
         self.activation = activation
+
+        if self.activation == 'entmax_alpha':
+            # Initialise a learnable alpha if the activation funciton is alpha-entmax
+            a = Parameter(torch.tensor(1.5), requires_grad=True, **factory_kwargs)
+            self.entmax_alpha = 1 + torch.sigmoid(a)
+        else:
+            self.entmax_alpha = None
 
         self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
@@ -167,7 +177,7 @@ class SparseMultiheadAttention(nn.Module):
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation)
+        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, self.entmax_alpha)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))

@@ -8,6 +8,11 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+**TODO**:
+- Refactor the training and eval script to conform with the change in building model from config files
+
+### April 27, 2022
+- We're taking a look at the `entmax` with learnable alpha, and the `tvmax` implementation to see what should be done first, in terms of, what could get done easier.
 
 ### April 26, 2022
 - We continue to work on the Gini score.
