@@ -31,8 +31,7 @@ def tvmax2d(X: Tensor) -> None:
 
 
 def scaled_dot_product_attention(
-    q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0,
-    activation: str = "softmax", entmax_alpha: Optional[Tensor] = None
+    q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0, activation: str = "softmax"
 ) -> Tuple[Tensor, Tensor]:
     """
     Modified version of scaled dot-production attention, support sparse activation functions
@@ -57,11 +56,6 @@ def scaled_dot_product_attention(
         attn = entmax15(attn, dim=-1)
     elif activation == 'tvmax':  # Total variation 2D
         attn = tvmax2d(attn)
-    elif activation == 'entmax_alpha':
-        if entmax_alpha is None:
-            raise ValueError(f"Activation {activation} requires a learnable alpha, i.e., a tensor that has gradients")
-        attn = entmax_bisect(attn, entmax_alpha)
-        
 
     if dropout_p > 0.0:
         attn = F.dropout(attn, p=dropout_p)
@@ -89,10 +83,11 @@ class SparseMultiheadAttention(nn.Module):
 
         if self.activation == 'entmax_alpha':
             # Initialise a learnable alpha if the activation funciton is alpha-entmax
-            a = Parameter(torch.tensor(1.5, **factory_kwargs), requires_grad=True)
-            self.entmax_alpha = Parameter(1 + torch.sigmoid(a), requires_grad=True)
-        else:
-            self.entmax_alpha = None
+            # a = Parameter(torch.tensor(1.5, **factory_kwargs), requires_grad=True)
+            # self.entmax_alpha = [Parameter(1 + torch.sigmoid(a), requires_grad=True) for _ in range(num_heads)]
+            for i in range(num_heads):
+                a = torch.tensor(1.5, **factory_kwargs)
+                setattr(self, f'entmax_alpha_{i}', Parameter(1 + torch.sigmoid(a), requires_grad=True))
 
         self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
@@ -178,7 +173,7 @@ class SparseMultiheadAttention(nn.Module):
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, self.entmax_alpha)
+        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
