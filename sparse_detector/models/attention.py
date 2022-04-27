@@ -31,7 +31,7 @@ def tvmax2d(X: Tensor) -> None:
 
 
 def scaled_dot_product_attention(
-    q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0, activation: str = "softmax"
+    q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0, activation: str = "softmax", alpha: Any = None
 ) -> Tuple[Tensor, Tensor]:
     """
     Modified version of scaled dot-production attention, support sparse activation functions
@@ -43,8 +43,7 @@ def scaled_dot_product_attention(
     attn = torch.bmm(q, k.transpose(-2, -1))
     if attn_mask is not None:
         attn += attn_mask
-    
-    print(f"attn: {attn.shape}")
+
     # This is the HEART of the first sparse experiment
     if activation not in VALID_ACTIVATION:
         raise RuntimeError(f"Unsupported activation function {activation}")
@@ -56,12 +55,31 @@ def scaled_dot_product_attention(
         attn = entmax15(attn, dim=-1)
     elif activation == 'tvmax':  # Total variation 2D
         attn = tvmax2d(attn)
+    elif activation == 'entmax_alpha':
+        assert alpha is not None, f"Alpha-entmax must have alpha initialise, got {alpha}"
+        ext_alpha = alpha.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)  # [1, nheads, 1, 1]
+        nheads = alpha.size(-1)
+        ext_alpha = ext_alpha.expand((B // nheads, -1, Nt, 1)) # [bs, nheads, Nt, 1]
+        attn = attn.view(B // nheads, nheads, -1) # [bs, nheads, Nt, d]
+        attn = entmax_bisect(attn, ext_alpha)  # [bs, nheads, Nt, d]
+        attn = attn.view(B, Nt, -1) # [B, Nt, d]
+        print(f"attn: {attn.shape}")
 
     if dropout_p > 0.0:
         attn = F.dropout(attn, p=dropout_p)
     # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
     output = torch.bmm(attn, v)
     return output, attn
+
+
+class AlphaChooser(nn.Module):
+    def __init__(self, nheads) -> None:
+        super().__init__()
+        self.a = Parameter(torch.randn(nheads))
+
+    def forward(self):
+        alpha = 1 + torch.sigmoid(self.a)
+        return torch.clamp(alpha, min=1.01, max=2)
 
 
 class SparseMultiheadAttention(nn.Module):
@@ -82,12 +100,10 @@ class SparseMultiheadAttention(nn.Module):
         self.activation = activation
 
         if self.activation == 'entmax_alpha':
-            # Initialise a learnable alpha if the activation funciton is alpha-entmax
-            # a = Parameter(torch.tensor(1.5, **factory_kwargs), requires_grad=True)
-            # self.entmax_alpha = [Parameter(1 + torch.sigmoid(a), requires_grad=True) for _ in range(num_heads)]
-            for i in range(num_heads):
-                a = torch.tensor(1.5, **factory_kwargs)
-                setattr(self, f'entmax_alpha_{i}', Parameter(1 + torch.sigmoid(a), requires_grad=True))
+            self.alpha_chooser = AlphaChooser(self.num_heads)
+            self.alpha = self.alpha_chooser()
+        else:
+            self.alpha = None
 
         self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
@@ -173,7 +189,7 @@ class SparseMultiheadAttention(nn.Module):
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation)
+        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, self.alpha)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
