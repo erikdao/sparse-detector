@@ -2,7 +2,7 @@
 Sparse attention modules
 """
 import math
-from typing import Tuple, Optional
+from typing import Any, Tuple, Optional
 
 import torch
 from torch import Tensor
@@ -74,7 +74,7 @@ class SparseMultiheadAttention(nn.Module):
     A simplified implementation of multihead attention, support sparse activation functions
     besides softmax
     """
-    def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.0, activation: str = 'softmax', device=None, dtype=None) -> None:
+    def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.0, activation: str = 'softmax', device: Any = None, dtype: Any = None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
 
         super().__init__()
@@ -88,8 +88,8 @@ class SparseMultiheadAttention(nn.Module):
 
         if self.activation == 'entmax_alpha':
             # Initialise a learnable alpha if the activation funciton is alpha-entmax
-            a = Parameter(torch.tensor(1.5), requires_grad=True, **factory_kwargs)
-            self.entmax_alpha = 1 + torch.sigmoid(a)
+            a = Parameter(torch.tensor(1.5, **factory_kwargs), requires_grad=True)
+            self.entmax_alpha = Parameter(1 + torch.sigmoid(a), requires_grad=True)
         else:
             self.entmax_alpha = None
 

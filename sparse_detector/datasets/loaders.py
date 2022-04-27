@@ -34,7 +34,7 @@ def build_dataloaders(
             dataset, batch_sampler=batch_sampler,
             collate_fn=misc_utils.collate_fn, num_workers=num_workers
         )
-        return data_loader, batch_sampler
+        return data_loader, sampler
     else:
         data_loader = data_utils.DataLoader(
             dataset, batch_size, sampler=sampler, drop_last=False,
