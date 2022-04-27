@@ -19,9 +19,12 @@ SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines/
 SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
+    --config "configs/decoder_entmax.yml" \
     --decoder-act "entmax15" \
     --coco-path data/COCO \
     --output-dir checkpoints --seed $SEED \
     --batch-size 6 --num-workers 12 \
     --exp-name "decoder_entmax_cross-mha" \
-    --wandb-group "decoder_entmax"
+    --wandb-group "decoder_entmax" \
+    --wandb-id "2gho4voo" \
+    --resume-from-checkpoint "checkpoints/decoder_entmax_cross-mha/checkpoint.pth"

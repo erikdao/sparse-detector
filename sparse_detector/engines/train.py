@@ -72,7 +72,7 @@ def main(
     wandb_run = None
     if dist_utils.is_main_process() and wandb_log:
         print("Initialize WandB logging...")
-        wandb_configs = exp_configs.get("wandb")
+        wandb_configs = base_configs.get("wandb")
         wandb_configs["name"] = exp_name
         if wandb_id is not None:
             wandb_configs["id"] = wandb_id
