@@ -20,7 +20,7 @@ from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
 from sparse_detector.datasets.coco import NORMALIZATION, CLASSES
 from sparse_detector.datasets import transforms as T
-from sparse_detector.utils.metrics import gini
+from sparse_detector.configs import build_detr_config
 
 
 @click.command()
@@ -51,24 +51,21 @@ def main(image_path, checkpoint_path, seed, decoder_act):
     input_tensor = transforms(resize_image).unsqueeze(0).to(device)
     click.echo(f"input_tensor: {input_tensor.shape}")
 
-    click.echo("Loading checkpoint")
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
-
     click.echo("Building model")
-    model, criterion, postprocessors = build_model(
-        "resnet50", 1e-5, False, True, "sine", 256, 6, 6,
-        dim_feedforward=2048, dropout=0.1, num_queries=100,
-        bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
-        set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
-        nheads=8, pre_norm=True, dataset_file='coco', device=device,
-        decoder_act=decoder_act
-    )
+    configs = build_detr_config(device=device)
+    if decoder_act:
+        configs['decoder_act'] = decoder_act
+    print(configs)
+
+    model, criterion, postprocessors = build_model(**configs)
 
     click.echo("Load model from checkpoint")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    model.load_state_dict(checkpoint['model'])
+
     model.eval()
     model.to(device)
 
-    model.load_state_dict(checkpoint['model'])
     describe_model(model)
 
     # convert boxes from [0; 1] to image scales
@@ -112,15 +109,7 @@ def main(image_path, checkpoint_path, seed, decoder_act):
     # Here we get the feature from the last block in the last layer of ResNet backbone
     h, w = conv_features['3'].tensors.shape[-2:]
 
-    queries = keep.nonzero()
-    for idx, layer_attn in enumerate(attentions):  # Loop through the attention maps for each decoder layer
-        attn_gini = 0.0
-        for query in queries:
-            attn = layer_attn[0, query].view(w, h).detach().cpu()
-            attn_gini += gini(attn)
-        
-        attn_gini /= len(queries)
-        print(f"Layer {idx}: attn_gini={attn_gini}")
+    # import pdb; pdb.set_trace()
 
 
 if __name__ == "__main__":

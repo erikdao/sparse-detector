@@ -45,6 +45,8 @@ def scaled_dot_product_attention(
     if attn_mask is not None:
         attn += attn_mask
     
+    print(f"attn: {attn.shape}")
+
     # This is the HEART of the first sparse experiment
     if activation not in VALID_ACTIVATION:
         raise RuntimeError(f"Unsupported activation function {activation}")

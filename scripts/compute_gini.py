@@ -17,13 +17,10 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.datasets.coco import NORMALIZATION, CLASSES
-from sparse_detector.datasets import transforms as T
 from sparse_detector.utils.metrics import gini
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config
 from sparse_detector.datasets.loaders import build_dataloaders
-from sparse_detector.utils.logging import MetricLogger, SmoothedValue
 
 @click.command()
 @click.option('--seed', type=int, default=42)
