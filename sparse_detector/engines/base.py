@@ -67,11 +67,23 @@ def train_one_epoch(
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
+        # Setup a hook to monitor alpha, model here is an instance of DDP, we'll need to attach
+        # the hooks to the non-DDP version, model.module
+        alpha = []
+        hooks = [
+            model.module.transformer.decoder.layers[0].multihead_attn.register_forward_hook(
+                lambda self, input, output: alpha.append(self.alpha) 
+            )
+        ]
+
         outputs = model(samples)
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
+        for hook in hooks:
+            hook.remove()
+        alpha = []
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = dist_utils.reduce_dict(loss_dict)
         loss_dict_reduced_unscaled = {f'{k}_unscaled': v for k, v in loss_dict_reduced.items()}

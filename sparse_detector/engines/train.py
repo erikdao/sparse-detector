@@ -135,6 +135,7 @@ def main(
     for epoch in range(start_epoch, epochs):
         if dist_config.distributed:
             sampler_train.set_epoch(epoch)
+
         train_stats, global_step = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
             trainer_configs['clip_max_norm'], global_step=global_step,
