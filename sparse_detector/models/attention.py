@@ -60,10 +60,9 @@ def scaled_dot_product_attention(
         ext_alpha = alpha.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)  # [1, nheads, 1, 1]
         nheads = alpha.size(-1)
         ext_alpha = ext_alpha.expand((B // nheads, -1, Nt, 1)) # [bs, nheads, Nt, 1]
-        attn = attn.view(B // nheads, nheads, -1) # [bs, nheads, Nt, d]
+        attn = attn.view(B // nheads, nheads, Nt, -1) # [bs, nheads, Nt, d]
         attn = entmax_bisect(attn, ext_alpha)  # [bs, nheads, Nt, d]
         attn = attn.view(B, Nt, -1) # [B, Nt, d]
-        print(f"attn: {attn.shape}")
 
     if dropout_p > 0.0:
         attn = F.dropout(attn, p=dropout_p)
@@ -73,9 +72,9 @@ def scaled_dot_product_attention(
 
 
 class AlphaChooser(nn.Module):
-    def __init__(self, nheads) -> None:
+    def __init__(self, nheads, device=None) -> None:
         super().__init__()
-        self.a = Parameter(torch.randn(nheads))
+        self.a = Parameter(torch.randn(nheads, device=device))
 
     def forward(self):
         alpha = 1 + torch.sigmoid(self.a)
@@ -100,10 +99,9 @@ class SparseMultiheadAttention(nn.Module):
         self.activation = activation
 
         if self.activation == 'entmax_alpha':
-            self.alpha_chooser = AlphaChooser(self.num_heads)
-            self.alpha = self.alpha_chooser()
+            self.alpha_chooser = AlphaChooser(self.num_heads, device=device)
         else:
-            self.alpha = None
+            self.alpha_chooser = None
 
         self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
@@ -186,10 +184,13 @@ class SparseMultiheadAttention(nn.Module):
         if not self.training:
             dropout_p = 0.0
 
+        # Get alpha for alpha-entmax:
+        if self.activation == 'entmax_alpha':
+            alpha = self.alpha_chooser()
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, self.alpha)
+        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, alpha)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
