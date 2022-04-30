@@ -1,0 +1,29 @@
+model:
+  backbone:
+    backbone: 'resnet50'
+    lr_backbone: 1e-4
+    dilation: false
+    position_embedding: 'sine'
+    return_interm_layers: true
+  transformer:
+    enc_layers: 6
+    dec_layers: 6
+    dim_feedforward: 2048
+    hidden_dim: 256
+    dropout: 0.1
+    nheads: 8
+    num_queries: 256
+    pre_norm: true
+    lr: 1e-5
+    decoder_act: 'sparsemax'
+
+loss:
+  aux_loss: false
+  matcher:
+    set_cost_class: 1
+    set_cost_bbox: 5
+    set_cost_giou: 2
+  coefficients:
+    bbox_loss_coef: 5
+    giou_loss_coef: 2
+    eos_coef: 0.1

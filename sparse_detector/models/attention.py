@@ -99,6 +99,7 @@ class SparseMultiheadAttention(nn.Module):
             self.pre_alpha = Parameter(torch.randn(self.num_heads, **factory_kwargs))
         else:
             self.pre_alpha = None
+            self.alpha = None
 
         self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))

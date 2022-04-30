@@ -11,8 +11,12 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+### April 30, 2022
+- While waiting for better solution with debugging `alpha`, we'll run some hyparam search for sparsemax. Starting with queries = 256 (instead of 100)
+
 ### April 28, 2022
 - We're debugging the issue of `alpha` is not learned for `SparseMultiheadAttention`
+- After spending the whole afternoon debugging, we seem to have been able to make `alpha` learnt. The next thing is to add `alpha` (of different heads, at different layers) to W&B log so we could have a more visible way of visualization how alpha is learned during the training.
 
 ### April 27, 2022
 - We're taking a look at the `entmax` with learnable alpha, and the `tvmax` implementation to see what should be done first, in terms of, what could get done easier.

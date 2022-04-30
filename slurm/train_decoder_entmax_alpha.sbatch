@@ -23,5 +23,5 @@ torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
     --decoder-act "entmax_alpha" \
     --coco-path data/COCO \
     --output-dir checkpoints --seed $SEED \
-    --batch-size 6 --num-workers 12 \
+    --batch-size 6 --num-workers 24 \
     --exp-name "decoder_entmax_alpha_cross-mha"
