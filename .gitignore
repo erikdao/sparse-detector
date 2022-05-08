@@ -20,3 +20,4 @@ checkpoints/
 wandb/
 temp/
 misc/
+outputs/
