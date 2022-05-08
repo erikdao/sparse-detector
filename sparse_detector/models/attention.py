@@ -99,7 +99,7 @@ class SparseMultiheadAttention(nn.Module):
             self.pre_alpha = Parameter(torch.randn(self.num_heads, **factory_kwargs))
         else:
             self.pre_alpha = None
-            self.alpha = None
+            # self.alpha = None
 
         self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
@@ -181,15 +181,12 @@ class SparseMultiheadAttention(nn.Module):
         if not self.training:
             dropout_p = 0.0
 
-        # Get alpha for alpha-entmax:
-        if self.activation == 'entmax_alpha':
-            self.alpha = 1 + torch.sigmoid(self.pre_alpha)
-            self.alpha = torch.clamp(self.alpha, min=1.01, max=2)
+        alpha = self.get_alpha()        
 
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, self.alpha)
+        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, alpha)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
@@ -204,3 +201,9 @@ class SparseMultiheadAttention(nn.Module):
             attn_output = attn_output.squeeze(1)
             attn_output_weights = attn_output_weights.squeeze(0)
         return attn_output, attn_output_weights
+
+    def get_alpha(self):
+        # Get alpha for alpha-entmax:
+        if self.activation == 'entmax_alpha':
+            return 1 + torch.sigmoid(self.pre_alpha).clamp(min=1.01, max=2)
+        return None

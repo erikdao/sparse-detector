@@ -139,7 +139,8 @@ def main(
         train_stats, global_step = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
             trainer_configs['clip_max_norm'], global_step=global_step,
-            wandb_run=wandb_run, log_freq=base_configs["logging"].get("log_freq")
+            wandb_run=wandb_run, log_freq=base_configs["logging"].get("log_freq"),
+            monitor_layer_alpha=bool(decoder_act == 'entmax_alpha'),
         )
         lr_scheduler.step()
         if exp_dir:

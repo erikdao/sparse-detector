@@ -54,7 +54,8 @@ def train_one_epoch(
     max_norm: float = 0,
     global_step: Optional[int] = None,
     wandb_run: Optional[Any] = None,
-    log_freq: Optional[int] = 50
+    log_freq: Optional[int] = 50,
+    monitor_layer_alpha: Optional[bool] = False
 ):
     model.train()
     criterion.train()
@@ -63,27 +64,31 @@ def train_one_epoch(
     metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
 
+    # Ad-hoc setup for alpha monitoring in alpha-entmax
+    alpha = dict()
+    alpha_values = []
+    meter_name = "alpha/decoder_layer-{i}_head-{h}"
+    if monitor_layer_alpha:
+        hooks = [
+            model.module.transformer.decoder.layers[i].multihead_attn.register_forward_hook(
+                lambda self, input, output: alpha_values.append(self.get_alpha()) 
+            ) for i in range(6)
+        ]
+        for i in range(6):
+            for h in range(8):
+                meter = meter_name.format(i=i, h=h)
+                metric_logger.add_meter(meter, SmoothedValue(window_size=1, fmt='{value:.4f}'))
+                alpha[meter] = None
+
     for (samples, targets), g_step in metric_logger.log_every(data_loader, log_freq=log_freq, global_step=global_step, header=header, prefix="train", epoch=epoch):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-        # Setup a hook to monitor alpha, model here is an instance of DDP, we'll need to attach
-        # the hooks to the non-DDP version, model.module
-        alpha = []
-        hooks = [
-            model.module.transformer.decoder.layers[0].multihead_attn.register_forward_hook(
-                lambda self, input, output: alpha.append(self.alpha) 
-            )
-        ]
 
         outputs = model(samples)
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
-
-        for hook in hooks:
-            hook.remove()
-        alpha = []
+        
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = dist_utils.reduce_dict(loss_dict)
         loss_dict_reduced_unscaled = {f'{k}_unscaled': v for k, v in loss_dict_reduced.items()}
@@ -106,6 +111,26 @@ def train_one_epoch(
         metric_logger.update(loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
         metric_logger.update(class_error=loss_dict_reduced['class_error'])
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+        # Update alpha monitoring
+        if monitor_layer_alpha:
+            for i in range(6):
+                for h in range(8):
+                    meter = meter_name.format(i=i, h=h)
+                    alpha[meter] = alpha_values[i].detach()[h]
+
+            # Reduce alpha
+            alpha_reduced = dist_utils.reduce_dict(alpha)
+            metric_logger.update(**alpha_reduced)
+
+            for i in range(6):
+                for h in range(8):
+                    meter = meter_name.format(i=i, h=h)
+                    alpha[meter] = None
+            alpha_values = []
+
+    for hook in hooks:
+        hook.remove()
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()

@@ -19,10 +19,10 @@ SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines
 SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
-    --config "configs/decoder_sparsemax_256queries_lr.yml" \
+    --config "configs/decoder_sparsemax_64queries.yml" \
     --decoder-act "sparsemax" \
     --coco-path data/COCO \
     --output-dir checkpoints --seed $SEED \
     --batch-size 6 --num-workers 24 \
-    --exp-name "decoder_sparsemax_256q_lr" \
+    --exp-name "decoder_sparsemax_64q" \
     --wandb-group "decoder_sparsemax"

@@ -11,8 +11,12 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+### May 8, 2022
+- We still have the problem that `alpha` in entmax is not learnable in our implementation. It might just be that we need to train for much more epochs to see the difference. Also it's better to have a complete logging infra with `alpha` to really see how it's learned.
+
 ### April 30, 2022
 - While waiting for better solution with debugging `alpha`, we'll run some hyparam search for sparsemax. Starting with queries = 256 (instead of 100)
+- It turned out that the number of queries isn't something that we can randomly tune and get better results. It's recommended to keep it as `100`
 
 ### April 28, 2022
 - We're debugging the issue of `alpha` is not learned for `SparseMultiheadAttention`

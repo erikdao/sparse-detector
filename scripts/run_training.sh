@@ -9,6 +9,7 @@ torchrun --nproc_per_node=1 $SCRIPT_DIR/train.py \
     --config configs/decoder_entmax_alpha.yml \
     --decoder-act "entmax_alpha" \
     --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
+    --epochs 1 \
     --output-dir checkpoints --seed $SEED \
     --batch-size 6 --num-workers 12 \
     --exp-name "entmax_alpha_test" \
