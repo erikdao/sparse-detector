@@ -129,8 +129,9 @@ def train_one_epoch(
                     alpha[meter] = None
             alpha_values = []
 
-    for hook in hooks:
-        hook.remove()
+    if monitor_layer_alpha:
+        for hook in hooks:
+            hook.remove()
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()

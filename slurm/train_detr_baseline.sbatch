@@ -18,9 +18,9 @@ SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines/
 SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
+    --config "configs/detr_baseline.yml" \
+    --decoder-act "softmax" \
     --coco-path data/COCO \
     --output-dir checkpoints --seed $SEED \
-    --batch-size 6 --num-workers 12 \
-    --exp-name "baseline_detr_sparse-mha" \
-    --wandb-id "22rz8myf" \
-    --resume-from-checkpoint "checkpoints/baseline_detr_sparse-mha/checkpoint.pth"
+    --batch-size 6 --num-workers 24 \
+    --exp-name "baseline_detr_softmax_check"
