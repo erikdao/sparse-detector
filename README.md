@@ -13,6 +13,7 @@ This section contains the log of the works that I have done in this project. I'm
 
 ### May 8, 2022
 - We still have the problem that `alpha` in entmax is not learnable in our implementation. It might just be that we need to train for much more epochs to see the difference. Also it's better to have a complete logging infra with `alpha` to really see how it's learned.
+- While debugging, we've realised that if we set the `decoder_act` to `softmax` and run the training pipeline, the `CE loss` and `cardinality_error` are different than the softmax baseline experiment we had previously. This is suspicious and calls for a thorough investigation.
 
 ### April 30, 2022
 - While waiting for better solution with debugging `alpha`, we'll run some hyparam search for sparsemax. Starting with queries = 256 (instead of 100)
