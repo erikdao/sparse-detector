@@ -11,6 +11,12 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+### May 19, 2022
+- Today, we're checking our `gini` function. The `test_gini` script computes the gini scores (implemented in `sparse_detector.utils.metrics.gini`) for a dense and a sparse tensor. It has shown that the sparse tensor has higher gini scores, which is the expected behavior.
+
+### May 11, 2022
+- After a week of debugging `alpha-entmax`, we still haven't able to pinpoint the problem. This suggests us to take the learnable alpha out of the current context of DETR and, instead, try it on a very simple network to see if it's learn anything.
+
 ### May 8, 2022
 - We still have the problem that `alpha` in entmax is not learnable in our implementation. It might just be that we need to train for much more epochs to see the difference. Also it's better to have a complete logging infra with `alpha` to really see how it's learned.
 - While debugging, we've realised that if we set the `decoder_act` to `softmax` and run the training pipeline, the `CE loss` and `cardinality_error` are different than the softmax baseline experiment we had previously. This is suspicious and calls for a thorough investigation.

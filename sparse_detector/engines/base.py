@@ -32,7 +32,13 @@ def build_detr_optims(
         weight_decay: Optimizer's weight decay
     """
     param_dicts = [
-        {"params": [p for n, p in model.named_parameters() if "backbone" not in n and p.requires_grad]},
+        {
+            "params": [p for n, p in model.named_parameters() if ("backbone" not in n) and (".pre_alpha" not in n) and p.requires_grad]
+        },
+        {
+            "params": [p for n, p in model.named_parameters() if ("backbone" not in n) and (".pre_alpha" in n) and p.requires_grad],
+            "weight_decay": 0.0,
+        },
         {
             "params": [p for n, p in model.named_parameters() if "backbone" in n and p.requires_grad],
             "lr": lr_backbone,
