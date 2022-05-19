@@ -10,4 +10,4 @@ torchrun --nproc_per_node=1 $SCRIPT_DIR/compute_gini.py \
     --batch-size 6 \
     --num-workers 24 \
     --decoder-act softmax \
-    --resume-from-checkpoint checkpoints/baseline_detr_sparse-mha/checkpoint.pth
+    --resume-from-checkpoint checkpoints/original_detr/detr-r50.pth

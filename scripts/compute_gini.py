@@ -48,6 +48,7 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
 
     click.echo("Load model from checkpoint")
     checkpoint = torch.load(resume_from_checkpoint, map_location="cpu")
+    import pdb; pdb.set_trace()
     model.load_state_dict(checkpoint['model'])
     model.eval()
     model.to(device)

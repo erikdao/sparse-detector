@@ -13,6 +13,14 @@ This section contains the log of the works that I have done in this project. I'm
 
 ### May 19, 2022
 - Today, we're checking our `gini` function. The `test_gini` script computes the gini scores (implemented in `sparse_detector.utils.metrics.gini`) for a dense and a sparse tensor. It has shown that the sparse tensor has higher gini scores, which is the expected behavior.
+- We recomputed the Gini scores for three models:
+  - Our DETR baseline with softmax activation which was trained for 300 epochs
+  - Our sparsemax variant which was trained for 300 epochs
+  - The original DETR with softmax activation which was trained for 500 epochs
+- The results are a bit confusing
+![./docs/img/gini_vis.png](./docs/img/gini_vis.png)
+
+- A small detail we've noticed when loading the DETR model from the original checkpoint (i.e., obtained from DETR's github) is that it doesn't include pre-normalization. However, in the code, the `pre_norm` hyperparameter is default to `True`.
 
 ### May 11, 2022
 - After a week of debugging `alpha-entmax`, we still haven't able to pinpoint the problem. This suggests us to take the learnable alpha out of the current context of DETR and, instead, try it on a very simple network to see if it's learn anything.
