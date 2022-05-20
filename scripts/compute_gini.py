@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini
+from sparse_detector.utils.metrics import gini, gini_alternative
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config
 from sparse_detector.datasets.loaders import build_dataloaders
@@ -102,7 +102,8 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
                 attn_gini = 0.0
                 for query in queries:
                     attn = layer_attn[query].view(w, h).detach().cpu()
-                    attn_gini += gini(attn)
+                    # attn_gini += gini(attn)
+                    attn_gini += gini_alternative(attn)
                 
                 attn_gini /= len(queries)
                 image_gini.append(attn_gini)
