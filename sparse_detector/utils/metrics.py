@@ -47,3 +47,19 @@ def gini_avg_mean(w: torch.Tensor) -> torch.Tensor:
     
     s /= w.shape[0]
     return s
+
+
+def gini_alternative(w: torch.Tensor) -> torch.Tensor:
+    s = 0
+    for row in w:
+        y, _ = torch.sort(row)
+        n = y.size(0)
+        indices = torch.tensor(torch.arange(n) + 1, device=y.device)
+        yp = torch.mul(indices, y)
+        num = yp.sum()  # torch.tensor([(i+1) * y[i] for i in range(n)]).sum()
+        denum = y.sum()
+        u = 1 - 2.0 / (n - 1) * (n - num / (denum + torch.finfo().eps))
+        s += u
+    
+    s /= w.shape[0]
+    return s

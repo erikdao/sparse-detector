@@ -11,6 +11,9 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+### May 20, 2022
+- We've paid a more thorough investigation into the implementation of Gini score. The formular proposed by the paper and the alternative formula on Wikipedia seems to produce the same results on our test data.
+
 ### May 19, 2022
 - Today, we're checking our `gini` function. The `test_gini` script computes the gini scores (implemented in `sparse_detector.utils.metrics.gini`) for a dense and a sparse tensor. It has shown that the sparse tensor has higher gini scores, which is the expected behavior.
 - We recomputed the Gini scores for three models:
