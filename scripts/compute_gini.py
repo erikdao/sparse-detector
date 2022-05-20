@@ -30,8 +30,9 @@ from sparse_detector.datasets.loaders import build_dataloaders
 @click.option('--batch-size', default=6, type=int, help="Batch size per GPU")
 @click.option('--dist_url', default='env://', help='url used to set up distributed training')
 @click.option('--resume-from-checkpoint', default='', help='resume from checkpoint')
-@click.option('--detection-threshold', default=0.7, help='Threshold to filter detection results')
-def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batch_size, dist_url, detection_threshold):
+@click.option('--detection-threshold', default=0.9, help='Threshold to filter detection results')
+@click.option('--pre-norm/--no-pre-norm', default=True)
+def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batch_size, dist_url, detection_threshold, pre_norm):
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -41,6 +42,7 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
     configs = build_detr_config(device=device)
     if decoder_act:
         configs['decoder_act'] = decoder_act
+    configs['pre_norm'] = pre_norm
     print(configs)
 
     click.echo("Building model with configs")
@@ -48,7 +50,6 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
 
     click.echo("Load model from checkpoint")
     checkpoint = torch.load(resume_from_checkpoint, map_location="cpu")
-    import pdb; pdb.set_trace()
     model.load_state_dict(checkpoint['model'])
     model.eval()
     model.to(device)

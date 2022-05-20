@@ -33,3 +33,17 @@ def gini(w: torch.Tensor) -> torch.Tensor:
         s += u
     s /= w.shape[0]
     return s
+
+
+def gini_avg_mean(w: torch.Tensor) -> torch.Tensor:
+    r"""The Gini coefficient computed using relative mean absolute difference
+    https://en.wikipedia.org/wiki/Gini_coefficient
+    """
+    s = 0
+    for row in w:
+        t = row.repeat(row.size(0), 1)
+        u = (t - t.T).abs().sum() / (2 * row.size(-1)**2 + torch.finfo().eps)
+        s += u
+    
+    s /= w.shape[0]
+    return s
