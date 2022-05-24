@@ -83,7 +83,10 @@ class SparseMultiheadAttention(nn.Module):
     A simplified implementation of multihead attention, support sparse activation functions
     besides softmax
     """
-    def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.0, activation: str = 'softmax', device: Any = None, dtype: Any = None) -> None:
+    def __init__(
+        self, embed_dim: int, num_heads: int, dropout: float = 0.0, activation: str = 'softmax',
+        device: Any = None, dtype: Any = None
+    ) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
 
         super().__init__()
@@ -193,6 +196,7 @@ class SparseMultiheadAttention(nn.Module):
 
         # optionally average attention weights over heads
         attn_output_weights = attn_output_weights.view(bsz, self.num_heads, tgt_len, src_len)
+        
         if average_attn_weights:
             attn_output_weights = attn_output_weights.sum(dim=1) / self.num_heads
 

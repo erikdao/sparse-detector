@@ -25,6 +25,7 @@ def build_model(
     pre_norm: Optional[bool] = True,
     device: Optional[Any] = None,
     decoder_act: Optional[str] = None,
+    average_cross_attn_weights: Optional[bool] = True,
 ):
     return build(
         backbone,
@@ -48,5 +49,6 @@ def build_model(
         nheads=nheads,
         pre_norm=pre_norm,
         device=device,
-        decoder_act=decoder_act
+        decoder_act=decoder_act,
+        average_cross_attn_weights=average_cross_attn_weights
     )

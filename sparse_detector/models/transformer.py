@@ -24,7 +24,8 @@ class Transformer(nn.Module):
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False,
                  decoder_mha=SparseMultiheadAttention,
-                 decoder_act: Optional[str] = None,):
+                 decoder_act: Optional[str] = None,
+                 average_cross_attn_weights: Optional[bool] = True):
         super().__init__()
 
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
@@ -37,7 +38,8 @@ class Transformer(nn.Module):
         # SparseMultiheadAttention for sparse attention
         decoder_layer = TransformerDecoderLayer(
             d_model, nhead, dim_feedforward, dropout, activation,
-            normalize_before, mha_layer=decoder_mha, cross_attn_activation=decoder_act)
+            normalize_before, mha_layer=decoder_mha, cross_attn_activation=decoder_act,
+            average_cross_attn_weights=average_cross_attn_weights)
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
                                           return_intermediate=return_intermediate_dec)
@@ -106,7 +108,7 @@ class TransformerDecoder(nn.Module):
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
-                query_pos: Optional[Tensor] = None):
+                query_pos: Optional[Tensor] = None,):
         output = tgt
 
         intermediate = []
@@ -196,12 +198,13 @@ class TransformerDecoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False, mha_layer=None,
-                 cross_attn_activation="softmax"):
+                 cross_attn_activation="softmax", average_cross_attn_weights: bool = True):
         super().__init__()
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
 
         self.cross_attn_activation = cross_attn_activation
-        print(f"Cross-attention activation: {cross_attn_activation}")
+        self.average_cross_attn_weights = average_cross_attn_weights
+        print(f"Cross-attention activation: {cross_attn_activation}; average_cross_attn_weights: {average_cross_attn_weights}")
         self.multihead_attn = mha_layer(d_model, nhead, dropout=dropout, activation=cross_attn_activation)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
@@ -227,7 +230,8 @@ class TransformerDecoderLayer(nn.Module):
                      tgt_key_padding_mask: Optional[Tensor] = None,
                      memory_key_padding_mask: Optional[Tensor] = None,
                      pos: Optional[Tensor] = None,
-                     query_pos: Optional[Tensor] = None):
+                     query_pos: Optional[Tensor] = None,
+                     average_cross_attn_weights: Optional[bool] = True):
         q = k = self.with_pos_embed(tgt, query_pos)
         tgt2 = self.self_attn(q, k, value=tgt, attn_mask=tgt_mask,
                               key_padding_mask=tgt_key_padding_mask)[0]
@@ -236,7 +240,8 @@ class TransformerDecoderLayer(nn.Module):
         tgt2 = self.multihead_attn(query=self.with_pos_embed(tgt, query_pos),
                                    key=self.with_pos_embed(memory, pos),
                                    value=memory, attn_mask=memory_mask,
-                                   key_padding_mask=memory_key_padding_mask)[0]
+                                   key_padding_mask=memory_key_padding_mask,
+                                   average_attn_weights=average_cross_attn_weights)[0]
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
@@ -250,7 +255,8 @@ class TransformerDecoderLayer(nn.Module):
                     tgt_key_padding_mask: Optional[Tensor] = None,
                     memory_key_padding_mask: Optional[Tensor] = None,
                     pos: Optional[Tensor] = None,
-                    query_pos: Optional[Tensor] = None):
+                    query_pos: Optional[Tensor] = None,
+                    average_cross_attn_weights: Optional[bool] = True):
         tgt2 = self.norm1(tgt)
         q = k = self.with_pos_embed(tgt2, query_pos)
         tgt2 = self.self_attn(q, k, value=tgt2, attn_mask=tgt_mask,
@@ -260,7 +266,8 @@ class TransformerDecoderLayer(nn.Module):
         tgt2 = self.multihead_attn(query=self.with_pos_embed(tgt2, query_pos),
                                    key=self.with_pos_embed(memory, pos),
                                    value=memory, attn_mask=memory_mask,
-                                   key_padding_mask=memory_key_padding_mask)[0]
+                                   key_padding_mask=memory_key_padding_mask,
+                                   average_attn_weights=average_cross_attn_weights)[0]
         tgt = tgt + self.dropout2(tgt2)
         tgt2 = self.norm3(tgt)
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt2))))
@@ -273,12 +280,16 @@ class TransformerDecoderLayer(nn.Module):
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
-                query_pos: Optional[Tensor] = None):
+                query_pos: Optional[Tensor] = None,
+                average_cross_attn_weights: Optional[bool]=None):
+        if average_cross_attn_weights is None:
+            average_cross_attn_weights = self.average_cross_attn_weights
+
         if self.normalize_before:
             return self.forward_pre(tgt, memory, tgt_mask, memory_mask,
-                                    tgt_key_padding_mask, memory_key_padding_mask, pos, query_pos)
+                                    tgt_key_padding_mask, memory_key_padding_mask, pos, query_pos, average_cross_attn_weights)
         return self.forward_post(tgt, memory, tgt_mask, memory_mask,
-                                 tgt_key_padding_mask, memory_key_padding_mask, pos, query_pos)
+                                 tgt_key_padding_mask, memory_key_padding_mask, pos, query_pos, average_cross_attn_weights)
 
 
 def _get_clones(module, N):
@@ -293,8 +304,10 @@ def build_transformer(
     dropout: float = 0.1,
     nheads: int = 8,
     pre_norm: bool = True,
-    decoder_act: str = None
+    decoder_act: str = None,
+    average_cross_attn_weights: bool = True
 ):
+    print(f"build_transformer - average_cross_attn_weights: {average_cross_attn_weights}")
     return Transformer(
         d_model=hidden_dim,
         dropout=dropout,
@@ -304,7 +317,8 @@ def build_transformer(
         num_decoder_layers=dec_layers,
         normalize_before=pre_norm,
         return_intermediate_dec=True,
-        decoder_act=decoder_act
+        decoder_act=decoder_act,
+        average_cross_attn_weights=average_cross_attn_weights
     )
 
 
