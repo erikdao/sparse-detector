@@ -79,21 +79,23 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
         outputs = model(samples)
         for hook in hooks:
             hook.remove()
+
         h, w = conv_features[0]['3'].tensors.shape[-2:]
 
-        pred_logits = outputs['pred_logits'].detach().cpu()  # [B, num_queries, num_classes]
-        probas = pred_logits.softmax(-1)[:, :, :-1]
-        batch_keep = probas.max(-1).values > detection_threshold
+        pred_logits = outputs['pred_logits'].detach()# .cpu()  # [B, num_queries, num_classes]
+        probas = pred_logits.softmax(-1)[:, :, :-1]  # [6, 100, 91]
+        batch_keep = probas.max(-1).values > detection_threshold # [6, 100]
 
         batch_gini = []
         # For each image in the batch
         for img_idx, keep in enumerate(batch_keep):
             assert keep.shape == (100,)
-            queries = keep.nonzero().squeeze(-1)
+            queries = keep.nonzero().squeeze(-1)  # [kept_queries,]
             if len(queries) == 0:
                 continue
 
             # List of attention maps from all decoder's layer for this particular image
+            # attn[img_idx] is of shape [num_queries, B, hidden_dim] (100, 6, 256)
             img_attentions = [attn[img_idx].detach().cpu() for attn in attentions]
             assert len(img_attentions) == 6
             
@@ -101,7 +103,7 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
             for layer_idx, layer_attn in enumerate(img_attentions):
                 attn_gini = 0.0
                 for query in queries:
-                    attn = layer_attn[query].view(w, h).detach().cpu()
+                    attn = layer_attn[query].view(w, h).detach()# .cpu()
                     # attn_gini += gini(attn)
                     attn_gini += gini_alternative(attn)
                 
