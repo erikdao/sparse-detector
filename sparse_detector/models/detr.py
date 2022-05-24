@@ -286,6 +286,7 @@ def build(
     pre_norm: Optional[bool] = True,
     device: Optional[Any] = None,
     decoder_act: Optional[str] = None,
+    average_cross_attn_weights: Optional[bool] = True
 ) -> Any:
     # the `num_classes` naming here is somewhat misleading.
     # it indeed corresponds to `max_obj_id + 1`, where max_obj_id
@@ -308,7 +309,8 @@ def build(
         dropout=dropout,
         nheads=nheads,
         pre_norm=pre_norm,
-        decoder_act=decoder_act
+        decoder_act=decoder_act,
+        average_cross_attn_weights=average_cross_attn_weights
     )
 
     model = DETR(

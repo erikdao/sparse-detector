@@ -16,6 +16,7 @@ model:
     pre_norm: true
     lr: 1e-5
     decoder_act: 'entmax15'
+    average_cross_attn_weights: true
 
 loss:
   aux_loss: false

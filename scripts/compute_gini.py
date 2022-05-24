@@ -43,6 +43,11 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
     if decoder_act:
         configs['decoder_act'] = decoder_act
     configs['pre_norm'] = pre_norm
+
+    # By default the attention weights are averaged across heads. However for computing the gini scores
+    # It is better to compute the score on each attention weight matrix for each head separately. This
+    # is to avoid the zeros being destroyed through the average.
+    configs['average_cross_attn_weights'] = False
     print(configs)
 
     click.echo("Building model with configs")
@@ -82,9 +87,14 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
 
         h, w = conv_features[0]['3'].tensors.shape[-2:]
 
-        pred_logits = outputs['pred_logits'].detach()# .cpu()  # [B, num_queries, num_classes]
-        probas = pred_logits.softmax(-1)[:, :, :-1]  # [6, 100, 91]
-        batch_keep = probas.max(-1).values > detection_threshold # [6, 100]
+        # At this point the `attentions` matrix would have the following properties:
+        # - Length: 6 - output from 6 decoder's layers
+        # - Each item: [B, num_heads, num_queries, h*w]: each item contains the attentions
+        #              from each head for all images in the batch
+
+        pred_logits = outputs['pred_logits'].detach()  # [B, num_queries, num_classes]
+        probas = pred_logits.softmax(-1)[:, :, :-1]  # [B, num_queries, 91]
+        batch_keep = probas.max(-1).values > detection_threshold # [B, num_queries]
 
         batch_gini = []
         # For each image in the batch
@@ -94,20 +104,23 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
             if len(queries) == 0:
                 continue
 
+            num_heads = 8
+            num_queries = len(queries)
             # List of attention maps from all decoder's layer for this particular image
-            # attn[img_idx] is of shape [num_queries, B, hidden_dim] (100, 6, 256)
-            img_attentions = [attn[img_idx].detach().cpu() for attn in attentions]
+            # attn[img_idx] is of shape [num_heads, num_queries, h*w] (e.g., [8, 100, 1444])
+            img_attentions = [attn[img_idx].detach() for attn in attentions]
             assert len(img_attentions) == 6
             
             image_gini = []
-            for layer_idx, layer_attn in enumerate(img_attentions):
+            for layer_idx, layer_attns in enumerate(img_attentions):
                 attn_gini = 0.0
-                for query in queries:
-                    attn = layer_attn[query].view(w, h).detach()# .cpu()
-                    # attn_gini += gini(attn)
-                    attn_gini += gini_alternative(attn)
+                for head in range(8):  # iterate across heads
+                    for query in queries:
+                        attn_q_h = layer_attns[head][query].view(w, h).detach()
+                        # attn_gini += gini(attn)
+                        attn_gini += gini_alternative(attn_q_h)
                 
-                attn_gini /= len(queries)
+                attn_gini /= (num_queries * num_heads)
                 image_gini.append(attn_gini)
             
             image_gini_t = torch.stack(image_gini)

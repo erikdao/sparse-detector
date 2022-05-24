@@ -22,8 +22,7 @@ Sparsemax
 Mean: tensor([ 0.4067,  0.2076, -0.0333,  0.1803, -0.1638,  0.2226])
 Std: tensor([0.4510, 0.4625, 0.3892, 0.3889, 0.3628, 0.4253])
 ```
-- If the problem still persists, we're thinking of inspecting the visualization of attention maps again for all models, including the original DETR (checkpoint) from DETR's repo.
-
+- There is an important comment from my supervisor: **The score should be computed for each attentions of those L layers, H heads separately. Don't average the attention weights across heads and then compute the scores**
 
 ### May 20, 2022
 - We've paid a more thorough investigation into the implementation of Gini score. The formular proposed by the paper and the alternative formula on Wikipedia seems to produce the same results on our test data. But on COCO val set, the results are different.
