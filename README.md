@@ -31,6 +31,10 @@ Sparsemax
 Mean: tensor([0.2072, 0.1240, 0.1062, 0.1138, 0.0841, 0.1229])
 Std: tensor([0.1254, 0.0599, 0.0357, 0.0389, 0.0312, 0.0602])
 ```
+- We did a quick test with the `scaled_dot_product_attention` function to see if its outputs make sense. To that end, we generated three random matrices `q, k, v` and pass them to the function with activation either be `softmax` or `sparsemax`. We observed that, indeed, the sparsemax output is sparse, compared to a dense output from softmax.
+- We then tried to run a full training for `sparsemax` again to see if there is any potential issue with the code base. So far, we've observed a couple of suspects:
+  - The training does not log all `42` metrics to W&B
+  - The loss values for a couple of first epochs are different than the previous experiment.
 
 ### May 24, 2022
 - The problem with Gini score not making sense on the COCO validation set still remains. Today, we want to double check that we indeed took the attention maps after `softmax` or `sparsemax` function when evaluating this scores.

@@ -7,7 +7,7 @@ SEED=42
 
 torchrun --nproc_per_node=1 $SCRIPT_DIR/train.py \
     --config configs/decoder_entmax_alpha.yml \
-    --decoder-act "entmax_alpha" \
+    --decoder-act "sparsemax" \
     --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
     --epochs 1 \
     --output-dir checkpoints --seed $SEED \
