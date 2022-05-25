@@ -40,3 +40,17 @@ def build_detr_config(config_file: Path, params: Optional[Any] = None, device: O
     base_configs['device'] = device
 
     return base_configs
+
+
+def build_trainer_config(base_configs: Dict[str, Any], params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    trainer_config = flatten_dict(base_configs)
+    if params is not None:
+        for k, v in params.items():
+            if k not in trainer_config:
+                continue
+            trainer_config.update({k: v})
+    
+    # Manual surgery
+    trainer_config['lr'] = float(trainer_config['lr'])
+
+    return trainer_config

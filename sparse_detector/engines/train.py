@@ -20,7 +20,7 @@ import torch
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, package_root)
 
-from sparse_detector.configs import build_detr_config, load_base_configs
+from sparse_detector.configs import build_detr_config, load_base_configs, build_trainer_config
 from sparse_detector.utils import misc as utils
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
@@ -92,7 +92,6 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     exp_dir = Path(output_dir) / exp_name
     exp_dir.mkdir(parents=True, exist_ok=True)
 
-    # TODO: dump configs for this run into a file
     if dist_utils.is_main_process():
         config_to_dump = {"base": base_configs, "detr": detr_config, "wandb": wandb_configs, "cmd_params": cmd_params}
         with open(exp_dir / "configs.yml", "w") as f:
@@ -114,15 +113,14 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         coco_path, batch_size, dist_config.distributed, num_workers
     )
 
-    sys.exit(0)
-
+    trainer_config = build_trainer_config(base_configs['trainer'], params=cmd_params)
     print("Building optim...")
     optimizer, lr_scheduler = build_detr_optims(
         model_without_ddp,
-        lr=lr,
-        lr_backbone=lr_backbone,
-        lr_drop=lr_drop,
-        weight_decay=weight_decay
+        lr=trainer_config['lr'],
+        lr_backbone=detr_config['lr_backbone'],
+        lr_drop=trainer_config['lr_drop'],
+        weight_decay=trainer_config['weight_decay']
     )
 
     global_step = 0  # Initialize the global step
@@ -148,7 +146,7 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         lr_scheduler.step()
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
-            # extra checkpoint before LR drop and every 100 epochs
+            # extra checkpoint before LR drop and every 10 epochs
             if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 10 == 0:
                 checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
             for checkpoint_path in checkpoint_paths:
