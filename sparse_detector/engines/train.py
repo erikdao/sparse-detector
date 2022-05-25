@@ -4,6 +4,7 @@ Entry point for training DETR models
 import os
 import sys
 import time
+import yaml
 import json
 import random
 import pprint
@@ -66,8 +67,8 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
 
     dist_config = dist_utils.init_distributed_mode(base_configs['distributed']['dist_url'])
 
-
     wandb_run = None
+    wandb_configs = None
     if dist_utils.is_main_process() and cmd_params['wandb_log']:
         print("Initialize WandB logging...")
         wandb_configs = base_configs.get("wandb")
@@ -91,6 +92,12 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     exp_dir = Path(output_dir) / exp_name
     exp_dir.mkdir(parents=True, exist_ok=True)
 
+    # TODO: dump configs for this run into a file
+    if dist_utils.is_main_process():
+        config_to_dump = {"base": base_configs, "detr": detr_config, "wandb": wandb_configs, "cmd_params": cmd_params}
+        with open(exp_dir / "configs.yml", "w") as f:
+            yaml.dump(config_to_dump, f)
+
     print("Building DETR model...")
     model, criterion, postprocessors = build_model(**detr_config)
     model.to(device)
@@ -101,8 +108,6 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     describe_model(model_without_ddp)
-
-    sys.exit(0)
 
     print("Building datasets and data loaders...")
     data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
