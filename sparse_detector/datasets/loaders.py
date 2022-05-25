@@ -2,19 +2,19 @@ from typing import Any, Optional, Tuple
 
 import torch.utils.data as data_utils
 
-from sparse_detector.datasets import build_dataset, get_coco_api_from_dataset
+from sparse_detector.datasets import get_coco_api_from_dataset
+from sparse_detector.datasets.coco import build as build_coco
 from sparse_detector.utils import misc as misc_utils
 
 
 def build_dataloaders(
-    dataset_file: str,
     coco_path: str,
     batch_size: int,
     distributed: bool,
     num_workers: Optional[int] = 12
 ) -> Tuple[Any, Any, Any, Any]:
-    dataset_train = build_dataset(image_set='train', dataset_file=dataset_file, coco_path=coco_path)
-    dataset_val = build_dataset(image_set='val', dataset_file=dataset_file, coco_path=coco_path)
+    dataset_train = build_coco(image_set='train', coco_path=coco_path)
+    dataset_val = build_coco(image_set='val', coco_path=coco_path)
 
     if distributed:
         sampler_train = data_utils.DistributedSampler(dataset_train)

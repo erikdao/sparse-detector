@@ -111,8 +111,10 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
 
     print("Building datasets and data loaders...")
     data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
-        dataset_file, coco_path, batch_size, dist_config.distributed, num_workers
+        coco_path, batch_size, dist_config.distributed, num_workers
     )
+
+    sys.exit(0)
 
     print("Building optim...")
     optimizer, lr_scheduler = build_detr_optims(

@@ -12,7 +12,5 @@ def get_coco_api_from_dataset(dataset):
         return dataset.coco
 
 
-def build_dataset(image_set, dataset_file, coco_path):
-    if dataset_file == 'coco':
-        return build_coco(image_set, coco_path)
-    raise ValueError(f'dataset {dataset_file} not supported')
+def build_dataset(image_set, coco_path):
+    return build_coco(image_set, coco_path)
