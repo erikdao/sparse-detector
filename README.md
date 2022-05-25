@@ -8,9 +8,116 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+**TODO:**
+- Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
+
+
+### May 25, 2022
+- We conducted an inspection to the history of the codebase, but haven't been able to really pinpoint the changes that broke the model, training, etc.
+- Thus, we decided to take the last working version, i.e., from `decoder_entmax_cross-mha` branch as the working version to work on computing the Gini scores. To this end, we created a new branch called `backup` from this branch and tagged it with `v2.0`
+- We're now refactoring the config and gradually testing the refactor.
+
+### May 25, 2022
+- We've tried different formulation of the Gini index, all seems to have pointed out that the `softmax` model attains a higher sparsity score (gini score) than the `sparsemax` model, which doesn't align with our hypothesis.
+- We're now thinking of inspecting the attention maps manually for more images to have a visual observation of the attention maps from models.
+```
+Softmax Baseline Sparse-MHA DETR
+Mean: tensor([0.7757, 0.8023, 0.8016, 0.8123, 0.8159, 0.7553])
+Std: tensor([0.0557, 0.0677, 0.0655, 0.0655, 0.0741, 0.0614])
+
+Softmax Baseline DETR
+Mean: tensor([0.7797, 0.7724, 0.7797, 0.7595, 0.7507, 0.6428])
+Std: tensor([0.0919, 0.0971, 0.0968, 0.0955, 0.0830, 0.0902])
+
+Softmax Original DETR
+Mean: tensor([0.7358, 0.7687, 0.7449, 0.7159, 0.7269, 0.6619])
+Std: tensor([0.0974, 0.1049, 0.0961, 0.0988, 0.0968, 0.0925])
+
+Sparsemax
+Mean: tensor([0.2072, 0.1240, 0.1062, 0.1138, 0.0841, 0.1229])
+Std: tensor([0.1254, 0.0599, 0.0357, 0.0389, 0.0312, 0.0602])
+```
+
+### May 24, 2022
+- The problem with Gini score not making sense on the COCO validation set still remains. Today, we want to double check that we indeed took the attention maps after `softmax` or `sparsemax` function when evaluating this scores.
+```
+Softmax - baseline DETR
+Mean: tensor([0.6134, 0.5853, 0.5936, 0.6019, 0.6878, 0.4906])
+Std: tensor([0.1976, 0.2031, 0.2191, 0.2004, 0.0839, 0.0861])
+
+Sparsemax
+Mean: tensor([ 0.4067,  0.2076, -0.0333,  0.1803, -0.1638,  0.2226])
+Std: tensor([0.4510, 0.4625, 0.3892, 0.3889, 0.3628, 0.4253])
+```
+- There is an important comment from my supervisor: **The score should be computed for each attentions of those L layers, H heads separately. Don't average the attention weights across heads and then compute the scores**
+- We've added the update to implement the idea above. However, it's very slow since there are too many nested loops.
+
+### May 20, 2022
+- We've paid a more thorough investigation into the implementation of Gini score. The formular proposed by the paper and the alternative formula on Wikipedia seems to produce the same results on our test data. But on COCO val set, the results are different.
+- For sparsemax model
+```
+Mean: tensor([ 0.4067,  0.2076, -0.0333,  0.1803, -0.1638,  0.2226])
+Std: tensor([0.4510, 0.4625, 0.3892, 0.3889, 0.3628, 0.4253])
+```
+- For softmax model
+```
+Mean: tensor([0.6134, 0.5853, 0.5936, 0.6019, 0.6878, 0.4906])
+Std: tensor([0.1976, 0.2031, 0.2191, 0.2004, 0.0839, 0.0861])
+```
+
+### May 19, 2022
+- Today, we're checking our `gini` function. The `test_gini` script computes the gini scores (implemented in `sparse_detector.utils.metrics.gini`) for a dense and a sparse tensor. It has shown that the sparse tensor has higher gini scores, which is the expected behavior.
+- We recomputed the Gini scores for three models:
+  - Our DETR baseline with softmax activation which was trained for 300 epochs
+  - Our sparsemax variant which was trained for 300 epochs
+  - The original DETR with softmax activation which was trained for 500 epochs
+- The results are a bit confusing
+![./docs/img/gini_vis.png](./docs/img/gini_vis.png)
+
+- A small detail we've noticed when loading the DETR model from the original checkpoint (i.e., obtained from DETR's github) is that it doesn't include pre-normalization. However, in the code, the `pre_norm` hyperparameter is default to `True`.
+
+### May 11, 2022
+- After a week of debugging `alpha-entmax`, we still haven't able to pinpoint the problem. This suggests us to take the learnable alpha out of the current context of DETR and, instead, try it on a very simple network to see if it's learn anything.
+
+### May 8, 2022
+- We still have the problem that `alpha` in entmax is not learnable in our implementation. It might just be that we need to train for much more epochs to see the difference. Also it's better to have a complete logging infra with `alpha` to really see how it's learned.
+- While debugging, we've realised that if we set the `decoder_act` to `softmax` and run the training pipeline, the `CE loss` and `cardinality_error` are different than the softmax baseline experiment we had previously. This is suspicious and calls for a thorough investigation.
+
+### April 30, 2022
+- While waiting for better solution with debugging `alpha`, we'll run some hyparam search for sparsemax. Starting with queries = 256 (instead of 100)
+- It turned out that the number of queries isn't something that we can randomly tune and get better results. It's recommended to keep it as `100`
+
+### April 28, 2022
+- We're debugging the issue of `alpha` is not learned for `SparseMultiheadAttention`
+- After spending the whole afternoon debugging, we seem to have been able to make `alpha` learnt. The next thing is to add `alpha` (of different heads, at different layers) to W&B log so we could have a more visible way of visualization how alpha is learned during the training.
+
+### April 27, 2022
+- We're taking a look at the `entmax` with learnable alpha, and the `tvmax` implementation to see what should be done first, in terms of, what could get done easier.
+- After 2 hours, we've ended up with the first version of `alpha-entmax` for the MHSA. Currently, the logging doesn't log the value of `alpha` while training, and we don't have a full picture on the `alpha` of different heads in each decoder's layer yet. That's the next step. To this end, we currently need to figure out the proper dimensionality of `alpha`.
+- A question arised is "how to get the attentions of a particular head from a specific layer?" -> That can be done by disabling `average_attn_weights` in the `forward` function of the MHSA class.
+- Meanwhile, we've got some updates on the `entmax15` experiment:
+```
+It seems to be a bit better than the sparsemax model (all the hyperameters are the same between two experiments). Most performance metrics of entmax15 are about 0.4 - 0.5 points better. After 250 epochs, the AP-Small of entmax15 is 1 point better than sparsemax is closing to the baseline. This might suggest that a softer sparsity might be desirable.
+```
+
+### April 26, 2022
+- We continue to work on the Gini score.
+- However, as we create different files, scripts in our project, we feel the growing need to being able to load default model configs from files, and create a model instance from those configs. Thus, we spent some times on this technical debt first.
+- Hooray! We've got some first Gini scores of the sparsemax model
+```
+|-------------|----------------|----------------|----------------|----------------|----------------|----------------|
+| model       | layer 0        | layer 1        | layer 2        | layer 3        | layer 4        | layer 5        |
+|-------------|----------------|----------------|----------------|----------------|----------------|----------------|
+| sparsemax   |0.6796 - 0.2199 |0.5765 - 0.2219 |0.4841 - 0.1883 |0.5874 - 0.1888 |0.4196 - 0.1720 |0.6084 - 0.2047 |
+|-------------|----------------|----------------|----------------|----------------|----------------|----------------|
+| softmax     |0.7407 - 0.0575 |0.7267 - 0.0640 |0.7572 - 0.0626 |0.8083 - 0.0584 |0.7616 - 0.1087 |0.6702 - 0.0794 |
+|-------------|----------------|----------------|----------------|----------------|----------------|----------------|
+```
+
 ### April 24, 2022
 - After too much pause, we've restarted the work on this thesis project.
 - We'll try a new activation function `entmax15`, just to see if a *softer* level of sparsity would result in something different.
+- Next,we'll compute the gini index for attention maps in each layers of the model. For a given input image, for each layer, the gini is average across all the queries. We then can report the gini scores for all layers of a model on the validation set.
 
 ### April 15, 2022
 - Today, we've added more visualization of intermediate layers from the decoder.
