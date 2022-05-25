@@ -11,6 +11,13 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+### May 25, 2022
+```
+Softmax Baseline DETR
+Mean: tensor([0.5610, 0.4405, 0.4155, 0.4742, 0.5043, 0.5079])
+Std: tensor([0.0717, 0.0625, 0.0767, 0.0590, 0.0771, 0.0658])
+```
+
 ### May 24, 2022
 - The problem with Gini score not making sense on the COCO validation set still remains. Today, we want to double check that we indeed took the attention maps after `softmax` or `sparsemax` function when evaluating this scores.
 ```

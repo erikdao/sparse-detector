@@ -6,9 +6,11 @@ import os
 import sys
 import warnings
 warnings.filterwarnings('ignore', 'UserWarning')
+warnings.filterwarnings("ignore")
 
 package_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, package_root)
+
 
 import click
 import torch
@@ -21,6 +23,22 @@ from sparse_detector.utils.metrics import gini, gini_alternative
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config
 from sparse_detector.datasets.loaders import build_dataloaders
+
+
+def compute_gini_for_head(head: int, queries: torch.Tensor, attns: torch.Tensor, w: int, h: int) -> float:
+    """
+    Compute Gini score for all queries of the given attention matrix
+    """
+    print(f"head {head}")
+    gini_score = 0.0
+    for query in queries:
+        attn_q_h = attns[head][query].view(w, h).detach().cpu()
+        # attn_gini += gini(attn)
+        gini_score += gini_alternative(attn_q_h)
+
+    gini_score /= len(queries)
+    return gini_score
+
 
 @click.command()
 @click.option('--seed', type=int, default=42)
@@ -92,7 +110,7 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
         # - Each item: [B, num_heads, num_queries, h*w]: each item contains the attentions
         #              from each head for all images in the batch
 
-        pred_logits = outputs['pred_logits'].detach()  # [B, num_queries, num_classes]
+        pred_logits = outputs['pred_logits'].detach().cpu()  # [B, num_queries, num_classes]
         probas = pred_logits.softmax(-1)[:, :, :-1]  # [B, num_queries, 91]
         batch_keep = probas.max(-1).values > detection_threshold # [B, num_queries]
 
@@ -108,7 +126,7 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
             num_queries = len(queries)
             # List of attention maps from all decoder's layer for this particular image
             # attn[img_idx] is of shape [num_heads, num_queries, h*w] (e.g., [8, 100, 1444])
-            img_attentions = [attn[img_idx].detach() for attn in attentions]
+            img_attentions = [attn[img_idx].detach().cpu() for attn in attentions]
             assert len(img_attentions) == 6
             
             image_gini = []
@@ -116,9 +134,10 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
                 attn_gini = 0.0
                 for head in range(8):  # iterate across heads
                     for query in queries:
-                        attn_q_h = layer_attns[head][query].view(w, h).detach()
+                        attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
                         # attn_gini += gini(attn)
-                        attn_gini += gini_alternative(attn_q_h)
+                        # attn_gini += gini_alternative(attn_q_h)
+                        attn_gini += gini(attn_q_h)
                 
                 attn_gini /= (num_queries * num_heads)
                 image_gini.append(attn_gini)
