@@ -16,7 +16,7 @@ from entmax import sparsemax, entmax15
 
 from sparse_detector.models.tvmax import TV2DFunction
 
-VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax', 'entmax15']
+VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax', 'entmax15', 'alpha_entmax']
 
 
 def tvmax2d(X: Tensor) -> None:

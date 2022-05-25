@@ -3,14 +3,14 @@ from sparse_detector.models.detr import build
 
 
 def build_model(
-    backbone: str,
-    lr_backbone: float,
-    dilation: bool,
-    return_interm_layers: bool,
-    position_embedding: str,
-    hidden_dim: int,
-    enc_layers: int,
-    dec_layers: int,
+    backbone: Optional[str] = 'resnet50',
+    lr_backbone: Optional[float] = 1e-5,
+    dilation: Optional[bool] = False,
+    return_interm_layers: Optional[bool] = True,
+    position_embedding: Optional[str] = 'sine',
+    hidden_dim: Optional[int] = 256,
+    enc_layers: Optional[int] = 6,
+    dec_layers: Optional[int] = 6,
     dim_feedforward: Optional[int] = 2048,
     dropout: Optional[float] = 0.1,
     num_queries: Optional[int] = 100,

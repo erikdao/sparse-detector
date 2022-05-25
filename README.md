@@ -16,6 +16,7 @@ This section contains the log of the works that I have done in this project. I'm
 - We conducted an inspection to the history of the codebase, but haven't been able to really pinpoint the changes that broke the model, training, etc.
 - Thus, we decided to take the last working version, i.e., from `decoder_entmax_cross-mha` branch as the working version to work on computing the Gini scores. To this end, we created a new branch called `backup` from this branch and tagged it with `v2.0`
 - We're now refactoring the config and gradually testing the refactor.
+- One thing we've noticed when reviewing the DETR's github is that they seem not to use `pre_norm` and `aux_loss`.
 
 ### May 25, 2022
 - We've tried different formulation of the Gini index, all seems to have pointed out that the `softmax` model attains a higher sparsity score (gini score) than the `sparsemax` model, which doesn't align with our hypothesis.

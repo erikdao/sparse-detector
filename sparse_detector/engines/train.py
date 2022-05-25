@@ -1,11 +1,12 @@
 """
-Entry point for training DETR Baseline
+Entry point for training DETR models
 """
 import os
 import sys
 import time
 import json
 import random
+import pprint
 import datetime
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import torch
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, package_root)
 
-from sparse_detector.configs import load_base_configs
+from sparse_detector.configs import build_detr_config, load_base_configs
 from sparse_detector.utils import misc as utils
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
@@ -30,84 +31,55 @@ from sparse_detector.models.attention import VALID_ACTIVATION
 
 
 @click.command("train_detr")
-@click.option('--config', default='', help="Path to config file")
+@click.option('--detr-config-file', default='', help="Path to config file")
 @click.option('--exp-name', default=None, help='Experiment name. Need to be set')
 @click.option('--seed', default=42, type=int)
 @click.option('--decoder-act', default='softmax', type=str, help='Activation function for the decoder MH cross-attention')
-@click.option('--lr', default=1e-4, type=float, help="Transformer detector learing rate")
-@click.option('--lr-backbone', default=1e-5, type=float, help="Backbone learning rate")
-@click.option('--batch-size', default=8, type=int, help="Batch size per GPU")
-@click.option('--weight-decay', default=1e-4, type=float, help="Optimizer's weight decay")
-@click.option('--epochs', default=300, type=int, help="Number of epochs")
-@click.option('--lr-drop', default=200,type=int, help="Epoch after which learning rate is dropped")
-@click.option('--clip-max-norm', default=0.1, type=float, help='gradient clipping max norm')
-@click.option('--backbone', default='resnet50', type=str, help="Name of the convolutional backbone to use")
-@click.option('--dilation/--no-dilation', default=False, help="If true, we replace stride with dilation in the last convolutional block (DC5)")
-@click.option('--position-embedding', default='sine', type=str, help="Type of positional embedding to use on top of the image features")
-@click.option('--enc-layers', default=6, type=int, help="Number of encoding layers in the transformer")
-@click.option('--dec-layers', default=6, type=int, help="Number of decoding layers in the transformer")
-@click.option('--dim-feedforward', default=2048, type=int, help="Intermediate size of the feedforward layers in the transformer blocks")
-@click.option('--hidden-dim', default=256, type=int, help="Size of the embeddings (dimension of the transformer)")
-@click.option('--dropout', default=0.1, type=float, help="Dropout applied in the transformer")
-@click.option('--nheads', default=8, type=int, help="Number of attention heads inside the transformer's attentions")
-@click.option('--num-queries', default=100, type=int, help="Number of query slots")
-@click.option('--pre-norm/--no-pre-norm', default=True)
-@click.option('--aux-loss/--no-aux-loss', default=True, help="Whether to use auxiliary decoding losses (loss at each layer)")
-@click.option('--set-cost-class', default=1, type=float, help="Class coefficient in the matching cost")
-@click.option('--set-cost-bbox', default=5, type=float, help="L1 box coefficient in the matching cost")
-@click.option('--set-cost-giou', default=2, type=float, help="giou box coefficient in the matching cost")
-@click.option('--bbox-loss-coef', default=5, type=float)
-@click.option('--giou-loss-coef', default=2, type=float)
-@click.option('--eos-coef', default=0.1, type=float, help="Relative classification weight of the no-object class")
-@click.option('--dataset-file', default='coco')
 @click.option('--coco-path', type=str)
 @click.option('--output-dir', default='', help='path where to save, empty for no saving')
 @click.option('--resume-from-checkpoint', default='', help='resume from checkpoint')
 @click.option('--start-epoch', default=0, type=int, help='start epoch')
+@click.option('--epochs', default=300, type=int, help='number of training epochs')
+@click.option('--batch-size', default=6, type=int, help='batch size')
 @click.option('--num-workers', default=12, type=int)
-@click.option('--dist_url', default='env://', help='url used to set up distributed training')
 @click.option('--wandb-log/--no-wandb-log', default=True, help="Whether to enable logging to W&B")
 @click.option('--wandb-group', default=None, help="The group for experiment on W&B")
 @click.option('--wandb-id', default=None, help="Run ID for resume")
 @click.pass_context
-def main(
-    ctx, config, exp_name, seed, backbone, lr_backbone, lr, batch_size, weight_decay, epochs,
-    lr_drop, clip_max_norm, dilation, position_embedding, enc_layers, dec_layers, dim_feedforward,
-    hidden_dim, dropout, nheads, num_queries, pre_norm, aux_loss, set_cost_class,
-    set_cost_bbox, set_cost_giou, bbox_loss_coef, giou_loss_coef, eos_coef,
-    dataset_file, coco_path, output_dir, resume_from_checkpoint, start_epoch,
-    num_workers, dist_url, wandb_id, wandb_log, wandb_group, decoder_act
-):
-    if decoder_act not in VALID_ACTIVATION:
-        raise ValueError(f"Unsupported decoder activation: {decoder_act}")
-
-    # TODO: Update default configs with ctx.params
-    args = locals()
-    dist_config = dist_utils.init_distributed_mode(dist_url)
-    default_configs = load_base_configs()
-    print("Initialized distributed training")
-    
+def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
+         output_dir, resume_from_checkpoint, start_epoch, epochs, 
+         batch_size, num_workers, wandb_log, wandb_group, wandb_id):
     print("git:\n  {}\n".format(utils.get_sha()))
-    print(args)
+    cmd_params = ctx.params
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    if cmd_params['decoder_act'] not in VALID_ACTIVATION:
+        raise ValueError(f"Unsupported decoder activation: {cmd_params['decoder_act']}")
+
+    base_configs = load_base_configs()
+    print("Base config")
+    pprint.pprint(base_configs)
+
+    detr_config = build_detr_config(cmd_params['detr_config_file'], params=cmd_params, device=device)
+    print("DETR config")
+    pprint.pprint(detr_config)
+
+    dist_config = dist_utils.init_distributed_mode(base_configs['distributed']['dist_url'])
+
 
     wandb_run = None
-    if dist_utils.is_main_process() and wandb_log:
+    if dist_utils.is_main_process() and cmd_params['wandb_log']:
         print("Initialize WandB logging...")
-        wandb_configs = default_configs.get("wandb")
-        wandb_configs["name"] = exp_name
-        if wandb_id is not None:
-            wandb_configs["id"] = wandb_id
+        wandb_configs = base_configs.get("wandb")
+        wandb_configs["name"] = cmd_params['exp_name']
+        if cmd_params['wandb_id'] is not None:
+            wandb_configs["id"] = cmd_params['wandb_id']
             wandb_configs["resume"] = True
 
-        if wandb_group is not None:
-            wandb_configs["group"] = wandb_group
+        if cmd_params['wandb_group'] is not None:
+            wandb_configs["group"] = cmd_params['wandb_group']
 
-        # Local config
-        config_to_log = {**args}
-        config_to_log.pop('ctx')
-        wandb_run = wandb.init(**wandb_configs, config=config_to_log)
-
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        wandb_run = wandb.init(**wandb_configs, config=cmd_params)
 
     # Fix the seed for reproducibility
     seed = seed + dist_utils.get_rank()
@@ -120,31 +92,7 @@ def main(
     exp_dir.mkdir(parents=True, exist_ok=True)
 
     print("Building DETR model...")
-    model, criterion, postprocessors = build_model(
-        backbone,
-        lr_backbone,
-        dilation,
-        True,  # return_interm_layers: bool
-        position_embedding,
-        hidden_dim,
-        enc_layers,
-        dec_layers,
-        dim_feedforward=dim_feedforward,
-        dropout=dropout,
-        num_queries=num_queries,
-        bbox_loss_coef=bbox_loss_coef,
-        giou_loss_coef=giou_loss_coef,
-        eos_coef=eos_coef,
-        aux_loss=aux_loss,
-        set_cost_class=set_cost_class,
-        set_cost_bbox=set_cost_bbox,
-        set_cost_giou=set_cost_giou,
-        nheads=nheads,
-        pre_norm=pre_norm,
-        dataset_file=dataset_file,
-        device=device,
-        decoder_act=decoder_act
-    )
+    model, criterion, postprocessors = build_model(**detr_config)
     model.to(device)
 
     model_without_ddp = model
@@ -153,6 +101,8 @@ def main(
         model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     describe_model(model_without_ddp)
+
+    sys.exit(0)
 
     print("Building datasets and data loaders...")
     data_loader_train, data_loader_val, base_ds, sampler_train = build_dataloaders(
@@ -192,7 +142,7 @@ def main(
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
             # extra checkpoint before LR drop and every 100 epochs
-            if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 100 == 0:
+            if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 10 == 0:
                 checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
             for checkpoint_path in checkpoint_paths:
                 dist_utils.save_on_master({
