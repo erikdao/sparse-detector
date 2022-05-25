@@ -16,6 +16,10 @@ This section contains the log of the works that I have done in this project. I'm
 Softmax Baseline DETR
 Mean: tensor([0.5610, 0.4405, 0.4155, 0.4742, 0.5043, 0.5079])
 Std: tensor([0.0717, 0.0625, 0.0767, 0.0590, 0.0771, 0.0658])
+
+Sparsemax
+Mean: tensor([0.2072, 0.1240, 0.1062, 0.1138, 0.0841, 0.1229])
+Std: tensor([0.1254, 0.0599, 0.0357, 0.0389, 0.0312, 0.0602])
 ```
 
 ### May 24, 2022

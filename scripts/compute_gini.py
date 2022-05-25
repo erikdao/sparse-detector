@@ -1,16 +1,19 @@
 """
-This script is used to compute the Gini score for all decoder layers' attention maps
-It's another adhoc script
+Computing Gini Score for Self-Attention matrices
+
+This script computes the Gini Score for self-attention matrices per head per decoder's layer
+for all images in the COCO validation set
 """
 import os
 import sys
+import time
+import random
+import datetime
 import warnings
-warnings.filterwarnings('ignore', 'UserWarning')
 warnings.filterwarnings("ignore")
 
 package_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, package_root)
-
 
 import click
 import torch
@@ -23,21 +26,7 @@ from sparse_detector.utils.metrics import gini, gini_alternative
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config
 from sparse_detector.datasets.loaders import build_dataloaders
-
-
-def compute_gini_for_head(head: int, queries: torch.Tensor, attns: torch.Tensor, w: int, h: int) -> float:
-    """
-    Compute Gini score for all queries of the given attention matrix
-    """
-    print(f"head {head}")
-    gini_score = 0.0
-    for query in queries:
-        attn_q_h = attns[head][query].view(w, h).detach().cpu()
-        # attn_gini += gini(attn)
-        gini_score += gini_alternative(attn_q_h)
-
-    gini_score /= len(queries)
-    return gini_score
+from sparse_detector.utils.logging import MetricLogger
 
 
 @click.command()
@@ -51,27 +40,31 @@ def compute_gini_for_head(head: int, queries: torch.Tensor, attns: torch.Tensor,
 @click.option('--detection-threshold', default=0.9, help='Threshold to filter detection results')
 @click.option('--pre-norm/--no-pre-norm', default=True)
 def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batch_size, dist_url, detection_threshold, pre_norm):
-    torch.manual_seed(seed)
-    np.random.seed(seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
     dist_config = dist_utils.init_distributed_mode(dist_url)
 
-    click.echo("Loading configs")
-    configs = build_detr_config(device=device)
+    detr_configs = build_detr_config(device=device)
     if decoder_act:
-        configs['decoder_act'] = decoder_act
-    configs['pre_norm'] = pre_norm
+        detr_configs['decoder_act'] = decoder_act
+    detr_configs['pre_norm'] = pre_norm
 
     # By default the attention weights are averaged across heads. However for computing the gini scores
     # It is better to compute the score on each attention weight matrix for each head separately. This
     # is to avoid the zeros being destroyed through the average.
-    configs['average_cross_attn_weights'] = False
-    print(configs)
+    detr_configs['average_cross_attn_weights'] = False
+    print(detr_configs)
 
-    click.echo("Building model with configs")
-    model, criterion, postprocessors = build_model(**configs)
+    # Fix the see for reproducibility
+    seed = seed + dist_utils.get_rank()
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
-    click.echo("Load model from checkpoint")
+    print("Building model with configs")
+    model, criterion, postprocessors = build_model(**detr_configs)
+
+    print("Load model from checkpoint")
     checkpoint = torch.load(resume_from_checkpoint, map_location="cpu")
     model.load_state_dict(checkpoint['model'])
     model.eval()
@@ -79,25 +72,34 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
     describe_model(model)
     criterion.eval()
 
-    click.echo("Building dataset")
-    data_loader, base_ds = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
+    model_without_ddp = model
+    if dist_config.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
+        model_without_ddp = model.module
     
-    click.echo("Computing gini")
+    print("Building dataset")
+    data_loader, base_ds = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
+
+    print("Computing gini")
+    metric_logger = MetricLogger(delimiter=" ")
+    header = 'Compute Gini:'
+
+    start_time = time.time()
     dataset_gini = []
-    for batch_idx, (samples, targets) in tqdm(enumerate(data_loader)):
+    for samples, targets in metric_logger.log_every(data_loader, log_freq=10, header=header, prefix="val"):
+        samples = samples.to(device)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
         attentions = []
         conv_features = []
-        hooks = [model.backbone[-2].register_forward_hook(lambda self, input, output: conv_features.append(output)),]
+        hooks = [model.module.backbone[-2].register_forward_hook(lambda self, input, output: conv_features.append(output)),]
 
         for i in range(6):
             hooks.append(
-                model.transformer.decoder.layers[i].multihead_attn.register_forward_hook(
+                model.module.transformer.decoder.layers[i].multihead_attn.register_forward_hook(
                     lambda self, input, output: attentions.append(output[1])
                 )
             )
-
-        samples = samples.to(device)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         outputs = model(samples)
         for hook in hooks:
@@ -121,7 +123,7 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
             queries = keep.nonzero().squeeze(-1)  # [kept_queries,]
             if len(queries) == 0:
                 continue
-
+            
             num_heads = 8
             num_queries = len(queries)
             # List of attention maps from all decoder's layer for this particular image
@@ -135,7 +137,6 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
                 for head in range(8):  # iterate across heads
                     for query in queries:
                         attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
-                        # attn_gini += gini(attn)
                         # attn_gini += gini_alternative(attn_q_h)
                         attn_gini += gini(attn_q_h)
                 
@@ -145,15 +146,27 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
             image_gini_t = torch.stack(image_gini)
             batch_gini.append(image_gini_t)
         
+        batch_gini_t = torch.stack(batch_gini)
+        batch_gini_score = torch.mean(batch_gini_t, 0)
+
         dataset_gini.extend(batch_gini)
         del attentions
         del conv_features
     
-    dataset_gini_t = torch.stack(dataset_gini)
-    print(dataset_gini_t.shape)
+    rank_gini = torch.stack(dataset_gini)
+    click.echo(f"Rank: {dist_config.rank}; Mean: {torch.mean(rank_gini, 0)}")
 
-    print(f"Mean: {torch.mean(dataset_gini_t, 0)}")
-    print(f"Std: {torch.std(dataset_gini_t, 0)}")
+    final_score = dist_utils.all_gather(rank_gini)
+    final_score = torch.cat(final_score, dim=0)
+
+    print("Final scores", final_score.shape)
+    print(f"Mean: {torch.mean(final_score, 0)}")
+    print(f"Std: {torch.std(final_score, 0)}")
+
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+    print("Time spent: {}".format(total_time_str))
+
 
 if __name__ == "__main__":
     main()
