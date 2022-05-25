@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini, gini_alternative
+from sparse_detector.utils.metrics import gini, gini_alternative, gini_avg_mean, gini_sorted
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config
 from sparse_detector.datasets.loaders import build_dataloaders
@@ -137,8 +137,10 @@ def main(resume_from_checkpoint, seed, decoder_act, coco_path, num_workers, batc
                 for head in range(8):  # iterate across heads
                     for query in queries:
                         attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
+                        attn_gini += gini_sorted(attn_q_h)
                         # attn_gini += gini_alternative(attn_q_h)
-                        attn_gini += gini(attn_q_h)
+                        # attn_gini += gini(attn_q_h)
+                        # attn_gini += gini_avg_mean(attn_q_h)
                 
                 attn_gini /= (num_queries * num_heads)
                 image_gini.append(attn_gini)

@@ -12,10 +12,20 @@ This section contains the log of the works that I have done in this project. I'm
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
 ### May 25, 2022
+- We've tried different formulation of the Gini index, all seems to have pointed out that the `softmax` model attains a higher sparsity score (gini score) than the `sparsemax` model, which doesn't align with our hypothesis.
+- We're now thinking of inspecting the attention maps manually for more images to have a visual observation of the attention maps from models.
 ```
+Softmax Baseline Sparse-MHA DETR
+Mean: tensor([0.7757, 0.8023, 0.8016, 0.8123, 0.8159, 0.7553])
+Std: tensor([0.0557, 0.0677, 0.0655, 0.0655, 0.0741, 0.0614])
+
 Softmax Baseline DETR
-Mean: tensor([0.5610, 0.4405, 0.4155, 0.4742, 0.5043, 0.5079])
-Std: tensor([0.0717, 0.0625, 0.0767, 0.0590, 0.0771, 0.0658])
+Mean: tensor([0.7797, 0.7724, 0.7797, 0.7595, 0.7507, 0.6428])
+Std: tensor([0.0919, 0.0971, 0.0968, 0.0955, 0.0830, 0.0902])
+
+Softmax Original DETR
+Mean: tensor([0.7358, 0.7687, 0.7449, 0.7159, 0.7269, 0.6619])
+Std: tensor([0.0974, 0.1049, 0.0961, 0.0988, 0.0968, 0.0925])
 
 Sparsemax
 Mean: tensor([0.2072, 0.1240, 0.1062, 0.1138, 0.0841, 0.1229])

@@ -7,7 +7,8 @@ SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/compute_gini.py \
     --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
-    --batch-size 4 \
+    --batch-size 6 \
     --num-workers 24 \
-    --decoder-act sparsemax \
-    --resume-from-checkpoint checkpoints/decoder_sparsemax_cross-mha/checkpoint.pth
+    --decoder-act softmax \
+    --no-pre-norm \
+    --resume-from-checkpoint checkpoints/original_detr/detr-r50.pth
