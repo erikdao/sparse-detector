@@ -10,7 +10,7 @@ datasets:
 trainer:
   epochs: 300
   weight_decay: 1e-4
-  lr: 1e-5
+  lr: 1e-4
   lr_drop: 200
   clip_max_norm: 0.1
   output_dir: ''
@@ -20,7 +20,7 @@ trainer:
   start_epoch: 0
 
 distributed:
-  world_size: 6
+  world_size: 1
   dist_url: 'env://'
 
 wandb:
