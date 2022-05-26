@@ -147,7 +147,7 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         if exp_dir:
             checkpoint_paths = [exp_dir / 'checkpoint.pth']
             # extra checkpoint before LR drop and every 10 epochs
-            if (epoch + 1) % lr_drop == 0 or (epoch + 1) % 10 == 0:
+            if (epoch + 1) % trainer_config['lr_drop'] == 0 or (epoch + 1) % 10 == 0:
                 checkpoint_paths.append(exp_dir / f'checkpoint_{epoch:04}.pth')
             for checkpoint_path in checkpoint_paths:
                 dist_utils.save_on_master({
