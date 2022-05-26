@@ -9,7 +9,7 @@ datasets:
 
 trainer:
   epochs: 300
-  weight_decay: 0.1
+  weight_decay: 1e-4
   lr: 1e-5
   lr_drop: 200
   clip_max_norm: 0.1

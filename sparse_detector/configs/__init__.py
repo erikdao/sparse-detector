@@ -52,5 +52,6 @@ def build_trainer_config(base_configs: Dict[str, Any], params: Optional[Dict[str
     
     # Manual surgery
     trainer_config['lr'] = float(trainer_config['lr'])
+    trainer_config['weight_decay'] = float(trainer_config['weight_decay'])
 
     return trainer_config
