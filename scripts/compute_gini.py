@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini, gini_alternative, gini_avg_mean, gini_sorted
+from sparse_detector.utils.metrics import gini, gini_alternative, gini_sorted
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config, load_base_configs, build_dataset_config
 from sparse_detector.datasets.loaders import build_dataloaders
@@ -140,7 +140,6 @@ def main(
                         attn_gini += gini_sorted(attn_q_h)
                         # attn_gini += gini_alternative(attn_q_h)
                         # attn_gini += gini(attn_q_h)
-                        # attn_gini += gini_avg_mean(attn_q_h)
                 
                 attn_gini /= (num_queries * num_heads)
                 image_gini.append(attn_gini)

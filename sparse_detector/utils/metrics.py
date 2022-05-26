@@ -1,6 +1,8 @@
 """
 Useful metrics for measuring sparsity
 """
+from typing import Optional
+
 import torch
 
 
@@ -31,20 +33,6 @@ def gini(w: torch.Tensor) -> torch.Tensor:
         u = (t - t.T).abs().sum() / (2 * (row.size(-1)**2 - row.size(-1)) *
                                      row.abs().mean() + torch.finfo().eps)
         s += u
-    s /= w.shape[0]
-    return s
-
-
-def gini_avg_mean(w: torch.Tensor) -> torch.Tensor:
-    r"""The Gini coefficient computed using relative mean absolute difference
-    https://en.wikipedia.org/wiki/Gini_coefficient
-    """
-    s = 0
-    for row in w:
-        t = row.repeat(row.size(0), 1)
-        u = (t - t.T).abs().sum() / (2 * row.size(-1)**2 + torch.finfo().eps)
-        s += u
-    
     s /= w.shape[0]
     return s
 
@@ -86,3 +74,20 @@ def gini_sorted(w: torch.Tensor) -> torch.Tensor:
     
     s /= w.shape[0]
     return s
+
+
+def zeros_ratio(w: torch.Tensor, threshold: Optional[float] = None) -> float:
+    """
+    Compute the zero ratio (i.e., # zero entries / # total entries) of a tensor
+
+    Args:
+        w: input tensor
+        threshold: should be use for softmax tensors
+    """
+    x = w.clone().detach()
+    if threshold is not None:
+        x = torch.where(x > threshold, x, torch.tensor(0.0))
+    
+    wh, ww = x.size()
+    zero_count = (x == 0.0).type(torch.uint8).sum()
+    return zero_count * 1.0 / (wh * ww)
