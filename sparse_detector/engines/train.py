@@ -50,6 +50,13 @@ from sparse_detector.models.attention import VALID_ACTIVATION
 def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
          output_dir, resume_from_checkpoint, start_epoch, epochs, 
          batch_size, num_workers, wandb_log, wandb_group, wandb_id):
+    # Load the base config and initialise distributed training mode first
+    # to avoid multiple hassles in printing
+    base_configs = load_base_configs()
+    print("Base config")
+    pprint.pprint(base_configs)
+    dist_config = dist_utils.init_distributed_mode(base_configs['distributed']['dist_url'])
+
     print("git:\n  {}\n".format(utils.get_sha()))
     cmd_params = ctx.params
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -57,15 +64,9 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     if cmd_params['decoder_act'] not in VALID_ACTIVATION:
         raise ValueError(f"Unsupported decoder activation: {cmd_params['decoder_act']}")
 
-    base_configs = load_base_configs()
-    print("Base config")
-    pprint.pprint(base_configs)
-
     detr_config = build_detr_config(cmd_params['detr_config_file'], params=cmd_params, device=device)
     print("DETR config")
     pprint.pprint(detr_config)
-
-    dist_config = dist_utils.init_distributed_mode(base_configs['distributed']['dist_url'])
 
     wandb_run = None
     wandb_configs = None

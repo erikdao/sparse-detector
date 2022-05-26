@@ -15,15 +15,13 @@ conda activate /proj/azizpour-group/users/cuongdao/.conda/sparsedet
 nvidia-smi
 
 PROJ_DIR=/proj/azizpour-group/users/cuongdao/projects/sparse-detector
-SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines/
+SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines
 SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
+    --detr-config-file "configs/decoder_sparsemax_baseline.yml"
     --decoder-act "sparsemax" \
     --coco-path data/COCO \
     --output-dir checkpoints --seed $SEED \
-    --batch-size 6 --num-workers 12 \
-    --exp-name "decoder_sparsemax_cross-mha" \
-    --wandb-group "decoder_sparsemax" \
-    --wandb-id "1r80hqsy" \
-    --resume-from-checkpoint "checkpoints/decoder_sparsemax_cross-mha/checkpoint.pth"
+    --exp-name "decoder_sparsemax_retest-config" \
+    --wandb-group "decoder_sparsemax"
