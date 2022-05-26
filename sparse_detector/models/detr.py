@@ -284,9 +284,9 @@ def build(
     set_cost_giou: Optional[int] = 2,
     nheads: Optional[int] = 8,
     pre_norm: Optional[bool] = True,
-    dataset_file: Optional[str] = 'coco',
     device: Optional[Any] = None,
     decoder_act: Optional[str] = None,
+    average_cross_attn_weights: Optional[bool] = True,
 ) -> Any:
     # the `num_classes` naming here is somewhat misleading.
     # it indeed corresponds to `max_obj_id + 1`, where max_obj_id
@@ -296,7 +296,8 @@ def build(
     # you should pass `num_classes` to be 2 (max_obj_id + 1).
     # For more details on this, check the following discussion
     # https://github.com/facebookresearch/detr/issues/108#issuecomment-650269223
-    num_classes = 20 if dataset_file != 'coco' else 91
+    # Update: we set this to 91 as we only use COCO
+    num_classes = 91 # 20 if dataset_file != 'coco' else 91
     device = torch.device(device)
 
     enc_backbone = build_backbone(backbone, lr_backbone, dilation, return_interm_layers, position_embedding, hidden_dim)
@@ -309,7 +310,8 @@ def build(
         dropout=dropout,
         nheads=nheads,
         pre_norm=pre_norm,
-        decoder_act=decoder_act
+        decoder_act=decoder_act,
+        average_cross_attn_weights=average_cross_attn_weights
     )
 
     model = DETR(

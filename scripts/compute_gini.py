@@ -73,14 +73,9 @@ def main(
     if dist_config.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
     
-    # TODO: Refactor build_dataloaders to build train and val dataloaders separately
     # TODO: Add option to not average attention weights across head in the model
-    # print("Building dataset")
-    # data_loader, base_ds = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
-    print("Building datasets and data loaders...")
-    _, data_loader, base_ds, _ = build_dataloaders(
-        coco_path, batch_size, dist_config.distributed, num_workers
-    )
+    print("Building dataset")
+    data_loader, _ = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
 
     print("Computing gini")
     metric_logger = MetricLogger(delimiter=" ")

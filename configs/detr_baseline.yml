@@ -15,6 +15,7 @@ model:
     num_queries: 100
     pre_norm: true
     decoder_act: 'softmax'
+    average_cross_attn_weights: true
 
 loss:
   aux_loss: true
