@@ -14,6 +14,7 @@ This section contains the log of the works that I have done in this project. I'm
 ### May 27, 2022
 - The next update for the codebase is to add a new parameter `average_cross_attn_weights` to DETR to allow whether to average the attention weights across heads or not. We're also running a sparsemax experiment to verify this change.
 - In the mean time, we're computing the Gini score for those models we trained previously.
+- We observed that the Gini scores now are similar to what we got previously. So we're pretty confident that the behavior of the Gini score wasn't due to any hick-ups in the code. Rather we should find a better metric.
 
 ### May 26, 2022
 - We've refactored the configurations (including model configs, trainer configs) into YAML files. There was a small hickup, the `weight_decay` hyperparam was set to `0.1` instead of `1e-4`.
