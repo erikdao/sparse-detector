@@ -18,7 +18,7 @@ def load_base_configs(file_path = None):
         cur_dir = Path(os.path.dirname(__file__))
         root_dir = cur_dir.parent.parent
         file_path = root_dir / "configs" / "base.yml"
-    
+
     return load_config(file_path)
 
 
