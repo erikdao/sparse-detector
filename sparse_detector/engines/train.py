@@ -7,9 +7,10 @@ import time
 import yaml
 import json
 import random
-import pprint
 import datetime
+import warnings
 from pathlib import Path
+warnings.filterwarnings('ignore')
 
 import wandb
 import click
@@ -20,7 +21,7 @@ import torch
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, package_root)
 
-from sparse_detector.configs import build_detr_config, load_base_configs, build_trainer_config
+from sparse_detector.configs import build_dataset_config, build_detr_config, load_base_configs, build_trainer_config
 from sparse_detector.utils import misc as utils
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.models import build_model
@@ -70,6 +71,8 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     trainer_config = build_trainer_config(base_configs['trainer'], params=cmd_params)
     print("Trainer config", trainer_config)
 
+    dataset_config = build_dataset_config(base_configs['dataset'], params=ctx.params)
+
     wandb_run = None
     wandb_configs = None
     if dist_utils.is_main_process() and cmd_params['wandb_log']:
@@ -83,7 +86,7 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         if cmd_params['wandb_group'] is not None:
             wandb_configs["group"] = cmd_params['wandb_group']
 
-        config_to_log = {**trainer_config, **detr_config}
+        config_to_log = {**trainer_config, **detr_config, **dataset_config}
         wandb_run = wandb.init(**wandb_configs, config=config_to_log)
 
     # Fix the seed for reproducibility
@@ -113,8 +116,14 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     describe_model(model_without_ddp)
 
     print("Building datasets and data loaders...")
-    data_loader_train, sampler_train = build_dataloaders('train', coco_path, batch_size, dist_config.distributed, num_workers)
-    data_loader_val, base_ds = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
+    data_loader_train, sampler_train = build_dataloaders(
+        'train', dataset_config['coco_path'], dataset_config['batch_size'],
+        dist_config.distributed, dataset_config['num_workers']
+    )
+    data_loader_val, base_ds = build_dataloaders(
+        'val', dataset_config['coco_path'], dataset_config['batch_size'],
+        dist_config.distributed, dataset_config['num_workers']
+    )
 
     print("Building optim...")
     optimizer, lr_scheduler = build_detr_optims(

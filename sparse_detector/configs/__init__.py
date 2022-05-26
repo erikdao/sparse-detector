@@ -55,3 +55,14 @@ def build_trainer_config(base_configs: Dict[str, Any], params: Optional[Dict[str
     trainer_config['weight_decay'] = float(trainer_config['weight_decay'])
 
     return trainer_config
+
+
+def build_dataset_config(base_configs: Dict[str, Any], params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    dataset_config = flatten_dict(base_configs)
+    if params is not None:
+        for k, v in params.items():
+            if k not in dataset_config:
+                continue
+            dataset_config.update({k: v})
+    
+    return dataset_config

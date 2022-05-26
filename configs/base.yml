@@ -1,8 +1,7 @@
 logging:
   log_freq: 50
 
-datasets:
-  dataset_file: 'coco'
+dataset:
   coco_path: 'data/COCO'
   batch_size: 6
   num_workers: 24

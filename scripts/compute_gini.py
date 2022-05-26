@@ -24,7 +24,7 @@ from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
 from sparse_detector.utils.metrics import gini, gini_alternative, gini_avg_mean, gini_sorted
 from sparse_detector.utils import distributed  as dist_utils
-from sparse_detector.configs import build_detr_config, load_base_configs
+from sparse_detector.configs import build_detr_config, load_base_configs, build_dataset_config
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.utils.logging import MetricLogger
 
@@ -46,6 +46,7 @@ def main(
     base_config = load_base_configs()
     dist_config = dist_utils.init_distributed_mode(base_config['distributed']['dist_url'])
     detr_config = build_detr_config(detr_config_file, params=ctx.params, device=device)
+    dataset_config = build_dataset_config(base_config['dataset'], params=ctx.params)
 
     # By default the attention weights are averaged across heads. However for computing the gini scores
     # It is better to compute the score on each attention weight matrix for each head separately. This
@@ -72,10 +73,12 @@ def main(
 
     if dist_config.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
-    
-    # TODO: Add option to not average attention weights across head in the model
+
     print("Building dataset")
-    data_loader, _ = build_dataloaders('val', coco_path, batch_size, dist_config.distributed, num_workers)
+    data_loader, _ = build_dataloaders(
+        'val', dataset_config['coco_path'], dataset_config['batch_size'],
+        dist_config.distributed, dataset_config['num_workers']
+    )
 
     print("Computing gini")
     metric_logger = MetricLogger(delimiter=" ")
