@@ -67,6 +67,9 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     detr_config = build_detr_config(cmd_params['detr_config_file'], params=cmd_params, device=device)
     print("DETR config", detr_config)
 
+    trainer_config = build_trainer_config(base_configs['trainer'], params=cmd_params)
+    print("Trainer config", trainer_config)
+
     wandb_run = None
     wandb_configs = None
     if dist_utils.is_main_process() and cmd_params['wandb_log']:
@@ -80,7 +83,8 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         if cmd_params['wandb_group'] is not None:
             wandb_configs["group"] = cmd_params['wandb_group']
 
-        wandb_run = wandb.init(**wandb_configs, config=cmd_params)
+        config_to_log = {**trainer_config, **detr_config}
+        wandb_run = wandb.init(**wandb_configs, config=config_to_log)
 
     # Fix the seed for reproducibility
     seed = seed + dist_utils.get_rank()
@@ -113,7 +117,6 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         coco_path, batch_size, dist_config.distributed, num_workers
     )
 
-    trainer_config = build_trainer_config(base_configs['trainer'], params=cmd_params)
     print("Building optim...")
     optimizer, lr_scheduler = build_detr_optims(
         model_without_ddp,
