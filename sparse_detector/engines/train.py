@@ -37,12 +37,12 @@ from sparse_detector.models.attention import VALID_ACTIVATION
 @click.option('--seed', default=42, type=int)
 @click.option('--decoder-act', default='softmax', type=str, help='Activation function for the decoder MH cross-attention')
 @click.option('--coco-path', type=str)
-@click.option('--output-dir', default='', help='path where to save, empty for no saving')
+@click.option('--output-dir', default='checkpoints', help='path where to save, empty for no saving')
 @click.option('--resume-from-checkpoint', default='', help='resume from checkpoint')
 @click.option('--start-epoch', default=0, type=int, help='start epoch')
 @click.option('--epochs', default=300, type=int, help='number of training epochs')
 @click.option('--batch-size', default=6, type=int, help='batch size')
-@click.option('--num-workers', default=12, type=int)
+@click.option('--num-workers', default=24, type=int)
 @click.option('--wandb-log/--no-wandb-log', default=True, help="Whether to enable logging to W&B")
 @click.option('--wandb-group', default=None, help="The group for experiment on W&B")
 @click.option('--wandb-id', default=None, help="Run ID for resume")
@@ -53,20 +53,19 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     # Load the base config and initialise distributed training mode first
     # to avoid multiple hassles in printing
     base_configs = load_base_configs()
-    print("Base config")
-    pprint.pprint(base_configs)
     dist_config = dist_utils.init_distributed_mode(base_configs['distributed']['dist_url'])
-
     print("git:\n  {}\n".format(utils.get_sha()))
+
+    print("Base config", base_configs)
     cmd_params = ctx.params
+    print("cmd_params", cmd_params)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     if cmd_params['decoder_act'] not in VALID_ACTIVATION:
         raise ValueError(f"Unsupported decoder activation: {cmd_params['decoder_act']}")
 
     detr_config = build_detr_config(cmd_params['detr_config_file'], params=cmd_params, device=device)
-    print("DETR config")
-    pprint.pprint(detr_config)
+    print("DETR config", detr_config)
 
     wandb_run = None
     wandb_configs = None
@@ -142,7 +141,7 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
             sampler_train.set_epoch(epoch)
         train_stats, global_step = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
-            clip_max_norm, global_step=global_step, wandb_run=wandb_run, log_freq=default_configs["logging"].get("log_freq")
+            trainer_config['clip_max_norm'], global_step=global_step, wandb_run=wandb_run, log_freq=base_configs['logging'].get('log_freq')
         )
         lr_scheduler.step()
         if exp_dir:
