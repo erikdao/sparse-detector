@@ -41,7 +41,7 @@ from sparse_detector.utils.logging import MetricLogger
 @click.option('--pre-norm/--no-pre-norm', default=True)
 @click.pass_context
 def main(
-    ctx, detr_config_file, resume_from_checkpoint, seed, coco_path, num_workers, batch_size, detection_threshold):
+    ctx, detr_config_file, resume_from_checkpoint, seed, decoder_act, pre_norm, coco_path, num_workers, batch_size, detection_threshold):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     base_config = load_base_configs()
     dist_config = dist_utils.init_distributed_mode(base_config['distributed']['dist_url'])
@@ -51,7 +51,7 @@ def main(
     # By default the attention weights are averaged across heads. However for computing the gini scores
     # It is better to compute the score on each attention weight matrix for each head separately. This
     # is to avoid the zeros being destroyed through the average.
-    # detr_config['average_cross_attn_weights'] = False
+    detr_config['average_cross_attn_weights'] = False
     print(detr_config)
 
     # Fix the see for reproducibility
