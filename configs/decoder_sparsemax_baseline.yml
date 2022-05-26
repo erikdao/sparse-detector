@@ -17,7 +17,7 @@ model:
     decoder_act: 'sparsemax'
 
 loss:
-  aux_loss: false
+  aux_loss: true
   matcher:
     set_cost_class: 1
     set_cost_bbox: 5
