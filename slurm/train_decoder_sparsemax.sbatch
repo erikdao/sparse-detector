@@ -19,7 +19,7 @@ SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines
 SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
-    --exp-name "decoder_sparsemax_retest-config" \
+    --exp-name "decoder_sparsemax_retest-dataloader" \
     --detr-config-file "configs/decoder_sparsemax_baseline.yml" \
     --decoder-act "sparsemax" \
     --coco-path data/COCO \

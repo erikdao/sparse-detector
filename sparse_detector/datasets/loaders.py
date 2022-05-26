@@ -8,32 +8,39 @@ from sparse_detector.utils import misc as misc_utils
 
 
 def build_dataloaders(
+    split: str,
     coco_path: str,
     batch_size: int,
     distributed: bool,
-    num_workers: Optional[int] = 12
-) -> Tuple[Any, Any, Any, Any]:
-    dataset_train = build_coco(image_set='train', coco_path=coco_path)
-    dataset_val = build_coco(image_set='val', coco_path=coco_path)
+    num_workers: Optional[int] = 24
+) -> Any:
+    if split not in ['train', 'val']:
+        raise ValueError(f"Split {split} is not supported")
 
-    if distributed:
-        sampler_train = data_utils.DistributedSampler(dataset_train)
-        sampler_val = data_utils.DistributedSampler(dataset_val, shuffle=False)
-    else:
-        sampler_train = data_utils.RandomSampler(dataset_train)
-        sampler_val = data_utils.SequentialSampler(dataset_val)
+    dataset = build_coco(image_set=split, coco_path=coco_path)
 
-    batch_sampler_train = data_utils.BatchSampler(sampler_train, batch_size, drop_last=True)
+    if split == 'train':
+        if distributed:
+            sampler = data_utils.DistributedSampler(dataset, shuffle=True)
+        else:
+            sampler = data_utils.RandomSampler(dataset)
+        
+        batch_sampler = data_utils.BatchSampler(sampler, batch_size, drop_last=True)
+        dataloader = data_utils.DataLoader(
+            dataset, batch_sampler=batch_sampler,
+            collate_fn=misc_utils.collate_fn, num_workers=num_workers
+        )
+        return dataloader, sampler
+    elif split == 'val':
+        if distributed:
+            sampler = data_utils.DistributedSampler(dataset, shuffle=False)
+        else:
+            sampler = data_utils.SequentialSampler(dataset)
 
-    data_loader_train = data_utils.DataLoader(
-        dataset_train, batch_sampler=batch_sampler_train,
-        collate_fn=misc_utils.collate_fn, num_workers=num_workers
-    )
-    data_loader_val = data_utils.DataLoader(
-        dataset_val, batch_size, sampler=sampler_val, drop_last=False,
-        collate_fn=misc_utils.collate_fn, num_workers=num_workers
-    )
+        dataloader = data_utils.DataLoader(
+            dataset, batch_size, sampler=sampler, drop_last=False,
+            collate_fn=misc_utils.collate_fn, num_workers=num_workers
+        )
 
-    base_ds = get_coco_api_from_dataset(dataset_val)
-
-    return data_loader_train, data_loader_val, base_ds, sampler_train
+        base_ds = get_coco_api_from_dataset(dataset)
+        return dataloader, base_ds

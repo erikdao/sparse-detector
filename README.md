@@ -15,8 +15,8 @@ This section contains the log of the works that I have done in this project. I'm
 - We've refactored the configurations (including model configs, trainer configs) into YAML files. There was a small hickup, the `weight_decay` hyperparam was set to `0.1` instead of `1e-4`.
 - After fixing that `weight_decay` hyperparam, we've rerun another sparsemax experiment to verify if everything is working as expected. That run should be lasting for 20 - 30 epochs.
 - Also, as we referred to the original DETR repo, we've realised that there were 2 hyperparams misconfigured, i.e., `lr_backbone` should be `1e-5` (instead of `1e-4`) and `lr` should have been `1e-4` (instead of `1e-5`). This might explain the weird behavior for the sparsemax experiment. We'll run it again.
-
-- In th meantime, we're going to compute the Gini score again.
+- So far, as we've fixed the misconfigurations, the sparsemax experiment seems to have behaved similar to the original sparsemax experiment we did two months ago.
+- Next, we'll refactor the `build_dataloaders` function and parameterise the `split` argument so it will only build one dataloader at a time. We also launch the sparsemax experiment again to test this refactor.
 
 ### May 25, 2022
 - We conducted an inspection to the history of the codebase, but haven't been able to really pinpoint the changes that broke the model, training, etc.
