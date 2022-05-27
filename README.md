@@ -15,6 +15,24 @@ This section contains the log of the works that I have done in this project. I'm
 - The next update for the codebase is to add a new parameter `average_cross_attn_weights` to DETR to allow whether to average the attention weights across heads or not. We're also running a sparsemax experiment to verify this change.
 - In the mean time, we're computing the Gini score for those models we trained previously.
 - We observed that the Gini scores now are similar to what we got previously. So we're pretty confident that the behavior of the Gini score wasn't due to any hick-ups in the code. Rather we should find a better metric.
+- We've added a new metric: **zeros ratio** - the ration between the number of zero entries vs total number of entries in an attention matrix. For sparse attention matrices, it's obvious how to compute this metric. For dense (softmax) matrices, we currently use a threshold of `1e-6`
+```
+Sparsemax:
+Mean: tensor([0.9828, 0.9878, 0.9947, 0.9930, 0.9952, 0.9930])
+Std: tensor([0.0065, 0.0053, 0.0019, 0.0019, 0.0014, 0.0025])
+
+Entmax15 (threshold = 1e-6):
+Mean: tensor([0.9631, 0.9863, 0.9865, 0.9836, 0.9855, 0.9748])
+Std: tensor([0.0221, 0.0060, 0.0044, 0.0079, 0.0066, 0.0115])
+
+Entmax15 (without threshold):
+Mean: tensor([0.9628, 0.9862, 0.9865, 0.9835, 0.9854, 0.9747])
+Std: tensor([0.0222, 0.0061, 0.0044, 0.0080, 0.0066, 0.0115])
+
+Softmax:
+Mean: tensor([0.7106, 0.8231, 0.8755, 0.8615, 0.8727, 0.6854])
+Std: tensor([0.0451, 0.0246, 0.0338, 0.0181, 0.0358, 0.0262])
+```
 
 ### May 26, 2022
 - We've refactored the configurations (including model configs, trainer configs) into YAML files. There was a small hickup, the `weight_decay` hyperparam was set to `0.1` instead of `1e-4`.

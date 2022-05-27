@@ -1,5 +1,5 @@
 """
-Computing Gini Score for Self-Attention matrices
+Computing metrics on COCO validation set
 
 This script computes the Gini Score for self-attention matrices per head per decoder's layer
 for all images in the COCO validation set
@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini, gini_alternative, gini_sorted
+from sparse_detector.utils.metrics import gini, gini_alternative, gini_sorted, zeros_ratio
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config, load_base_configs, build_dataset_config
 from sparse_detector.datasets.loaders import build_dataloaders
@@ -30,6 +30,8 @@ from sparse_detector.utils.logging import MetricLogger
 
 
 @click.command()
+@click.argument('metric', default='gini', type=str)
+@click.option('--metric-threshold', type=float, default=None, help='Threshold for metric')
 @click.option('--seed', type=int, default=42)
 @click.option('--detr-config-file', default='', help="Path to config file")
 @click.option('--decoder-act', type=str, default='sparsemax')
@@ -41,7 +43,13 @@ from sparse_detector.utils.logging import MetricLogger
 @click.option('--pre-norm/--no-pre-norm', default=True)
 @click.pass_context
 def main(
-    ctx, detr_config_file, resume_from_checkpoint, seed, decoder_act, pre_norm, coco_path, num_workers, batch_size, detection_threshold):
+    ctx, metric, detr_config_file, resume_from_checkpoint, seed,
+    decoder_act, pre_norm, coco_path, num_workers, batch_size, detection_threshold,
+    metric_threshold
+):
+    if metric not in ['gini', 'zeros_ratio']:
+        raise ValueError(f"Metric {metric} not supported! Quitting!")
+
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     base_config = load_base_configs()
     dist_config = dist_utils.init_distributed_mode(base_config['distributed']['dist_url'])
@@ -85,8 +93,8 @@ def main(
     header = 'Gini:'
 
     start_time = time.time()
-    dataset_gini = []
-    for samples, targets in metric_logger.log_every(data_loader, log_freq=10, header=header, prefix="val"):
+    dataset_metric = []
+    for batch_id, (samples, targets) in enumerate(metric_logger.log_every(data_loader, log_freq=10, header=header, prefix="val")):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -116,7 +124,7 @@ def main(
         probas = pred_logits.softmax(-1)[:, :, :-1]  # [B, num_queries, 91]
         batch_keep = probas.max(-1).values > detection_threshold # [B, num_queries]
 
-        batch_gini = []
+        batch_metric = []
         # For each image in the batch
         for img_idx, keep in enumerate(batch_keep):
             assert keep.shape == (100,)
@@ -131,30 +139,31 @@ def main(
             img_attentions = [attn[img_idx].detach().cpu() for attn in attentions]
             assert len(img_attentions) == 6
             
-            image_gini = []
+            image_metric = []
             for layer_idx, layer_attns in enumerate(img_attentions):
-                attn_gini = 0.0
+                attn_metric = 0.0
                 for head in range(8):  # iterate across heads
                     for query in queries:
                         attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
-                        attn_gini += gini_sorted(attn_q_h)
-                        # attn_gini += gini_alternative(attn_q_h)
-                        # attn_gini += gini(attn_q_h)
+                        if metric == 'zeros_ratio':
+                            attn_metric += zeros_ratio(attn_q_h, threshold=metric_threshold)
+                        elif metric == 'gini':
+                            attn_metric += gini_sorted(attn_q_h)
                 
-                attn_gini /= (num_queries * num_heads)
-                image_gini.append(attn_gini)
+                attn_metric /= (num_queries * num_heads)
+                image_metric.append(attn_metric)
             
-            image_gini_t = torch.stack(image_gini)
-            batch_gini.append(image_gini_t)
+            image_metric_t = torch.stack(image_metric)
+            batch_metric.append(image_metric_t)
         
-        batch_gini_t = torch.stack(batch_gini)
-        batch_gini_score = torch.mean(batch_gini_t, 0)
+        batch_metric_t = torch.stack(batch_metric)
+        batch_metric_score = torch.mean(batch_metric_t, 0)
 
-        dataset_gini.extend(batch_gini)
+        dataset_metric.extend(batch_metric)
         del attentions
         del conv_features
     
-    rank_gini = torch.stack(dataset_gini)
+    rank_gini = torch.stack(dataset_metric)
     click.echo(f"Rank: {dist_config.rank}; Mean: {torch.mean(rank_gini, 0)}")
 
     final_score = dist_utils.all_gather(rank_gini)
