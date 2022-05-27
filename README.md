@@ -33,6 +33,8 @@ Softmax:
 Mean: tensor([0.7106, 0.8231, 0.8755, 0.8615, 0.8727, 0.6854])
 Std: tensor([0.0451, 0.0246, 0.0338, 0.0181, 0.0358, 0.0262])
 ```
+- After a couple of hours re-running the sparsemax experiments, we've seen that there are differences in how the losses, the AP curves are exhibiting for the same experiment at different commits.
+![./docs/img/val_metrics_graph.png](./docs/img/val_metrics_graph.png)
 
 ### May 26, 2022
 - We've refactored the configurations (including model configs, trainer configs) into YAML files. There was a small hickup, the `weight_decay` hyperparam was set to `0.1` instead of `1e-4`.
