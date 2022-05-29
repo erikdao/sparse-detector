@@ -25,4 +25,6 @@ torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
     --coco-path data/COCO \
     --output-dir checkpoints \
     --seed $SEED \
-    --wandb-group "decoder_sparsemax"
+    --wandb-group "decoder_sparsemax" \
+    --wandb-id "1f49uhpm" \
+    --resume-from-checkpoint "checkpoints/decoder_sparsemax_retest-config/checkpoint_0219.pth"
