@@ -11,6 +11,11 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+
+### May 29, 2022
+- The `decoder_sparsemax_retest-config` re-experiment was max out it time on Berzelius (3 days). We've resumed it and continued training.
+
+
 ### May 27, 2022
 - The next update for the codebase is to add a new parameter `average_cross_attn_weights` to DETR to allow whether to average the attention weights across heads or not. We're also running a sparsemax experiment to verify this change.
 - In the mean time, we're computing the Gini score for those models we trained previously.
