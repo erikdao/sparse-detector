@@ -23,4 +23,6 @@ torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
     --decoder-act "softmax" \
     --coco-path data/COCO \
     --output-dir checkpoints \
-    --seed $SEED
+    --seed $SEED \
+    --wandb-id "19ie75vp" \
+    --resume-from-checkpoint "checkpoints/v2_baseline_detr/checkpoint_0229.pth" 
