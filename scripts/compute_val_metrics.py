@@ -71,9 +71,10 @@ def main(
     print("Building model with configs")
     model, criterion, _ = build_model(**detr_config)
 
-    print("Load model from checkpoint")
-    checkpoint = torch.load(resume_from_checkpoint, map_location="cpu")
-    model.load_state_dict(checkpoint['model'])
+    if resume_from_checkpoint:
+        print(f"Load model from checkpoint: {resume_from_checkpoint}")
+        checkpoint = torch.load(resume_from_checkpoint, map_location="cpu")
+        model.load_state_dict(checkpoint['model'])
     model.eval()
     model.to(device)
     describe_model(model)
@@ -88,9 +89,9 @@ def main(
         dist_config.distributed, dataset_config['num_workers']
     )
 
-    print("Computing gini")
+    print(f"Computing {metric}")
     metric_logger = MetricLogger(delimiter=" ")
-    header = 'Gini:'
+    header = f"{metric}:"
 
     start_time = time.time()
     dataset_metric = []
