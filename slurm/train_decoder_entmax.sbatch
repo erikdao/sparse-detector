@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH -n 72
 #SBATCH --gpus 6
-#SBATCH --time 72:00:00
+#SBATCH --time 32:00:00
 #SBATCH --mail-type FAIL
 #SBATCH --mail-user cuongdd@kth.se
 #SBATCH --account berzelius-2022-50
@@ -25,4 +25,6 @@ torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
     --coco-path data/COCO \
     --output-dir checkpoints \
     --seed $SEED \
-    --wandb-group "decoder_entmax"
+    --wandb-group "decoder_entmax" \
+    --wandb-id "3povfz31" \
+    --resume-from-checkpoint "checkpoints/v2_decoder_entmax15/checkpoint_0219.pth"
