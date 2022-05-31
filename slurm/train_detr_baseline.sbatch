@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH -n 72
 #SBATCH --gpus 6
-#SBATCH --time 72:00:00
+#SBATCH --time 24:00:00
 #SBATCH --mail-type FAIL
 #SBATCH --mail-user cuongdd@kth.se
 #SBATCH --account berzelius-2022-50
