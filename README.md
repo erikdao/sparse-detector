@@ -11,6 +11,19 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+
+### June 1, 2022
+- After a reminder from the supervisor, we've realized a flaw in the way we're computing the metrics. Specifically, the metrics should be computed for all attention maps from all queries, not just for those whose detection's confident scores meet a certain threshold. We need to compute the metrics again for all models.
+
+**Zero entries ratio**
+```
+Baseline DETR softmax (threshold=1e-6)
+Mean: tensor([0.7123, 0.9125, 0.8622, 0.8872, 0.7091, 0.6634])
+Std: tensor([0.0420, 0.0332, 0.0278, 0.0232, 0.0276, 0.0298])
+
+
+```
+
 ### May 30, 2022
 - Today, we've computed the metrics for randomized models.
 

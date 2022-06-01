@@ -123,7 +123,8 @@ def main(
 
         pred_logits = outputs['pred_logits'].detach().cpu()  # [B, num_queries, num_classes]
         probas = pred_logits.softmax(-1)[:, :, :-1]  # [B, num_queries, 91]
-        batch_keep = probas.max(-1).values > detection_threshold # [B, num_queries]
+        # Hack: > 0.0 so it will keep all attentions from all queries
+        batch_keep = probas.max(-1).values > 0.0 # detection_threshold # [B, num_queries]
 
         batch_metric = []
         # For each image in the batch
