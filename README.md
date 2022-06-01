@@ -17,10 +17,31 @@ This section contains the log of the works that I have done in this project. I'm
 
 **Zero entries ratio**
 ```
-Baseline DETR softmax (threshold=1e-6)
+Randomly initialized softmax
+Mean: tensor([0., 0., 0., 0., 0., 0.])
+Std: tensor([0., 0., 0., 0., 0., 0.])
+
+Trained softmax (threshold=1e-6, without detection's confidence threshold)
 Mean: tensor([0.7123, 0.9125, 0.8622, 0.8872, 0.7091, 0.6634])
 Std: tensor([0.0420, 0.0332, 0.0278, 0.0232, 0.0276, 0.0298])
 
+Trained softmax (threshold=1e-6, detection threshold=0.9)
+
+Randomly Initialized Entmax15
+Mean: tensor([0.7477, 0.7777, 0.7933, 0.7874, 0.7819, 0.7899])
+Std: tensor([0.0699, 0.0561, 0.0510, 0.0598, 0.0563, 0.0577])
+
+Trained Entmax15
+Mean: tensor([0.9540, 0.9825, 0.9735, 0.9764, 0.9788, 0.9775])
+Std: tensor([0.0189, 0.0047, 0.0067, 0.0109, 0.0056, 0.0084])
+
+Randomly Initialized  Sparsemax
+Mean: tensor([0.9608, 0.9698, 0.9675, 0.9734, 0.9686, 0.9701])
+Std: tensor([0.0080, 0.0062, 0.0084, 0.0063, 0.0075, 0.0074])
+
+Trained Sparsemax
+Mean: tensor([0.9912, 0.9942, 0.9959, 0.9947, 0.9955, 0.9958])
+Std: tensor([0.0024, 0.0012, 0.0009, 0.0014, 0.0010, 0.0012])
 
 ```
 

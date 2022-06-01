@@ -39,7 +39,7 @@ from sparse_detector.utils.logging import MetricLogger
 @click.option('--num-workers', default=12, type=int)
 @click.option('--batch-size', default=6, type=int, help="Batch size per GPU")
 @click.option('--resume-from-checkpoint', default='', help='resume from checkpoint')
-@click.option('--detection-threshold', default=0.9, help='Threshold to filter detection results')
+@click.option('--detection-threshold', default=None, type=float, help='Threshold to filter detection results')
 @click.option('--pre-norm/--no-pre-norm', default=True)
 @click.pass_context
 def main(
@@ -124,7 +124,8 @@ def main(
         pred_logits = outputs['pred_logits'].detach().cpu()  # [B, num_queries, num_classes]
         probas = pred_logits.softmax(-1)[:, :, :-1]  # [B, num_queries, 91]
         # Hack: > 0.0 so it will keep all attentions from all queries
-        batch_keep = probas.max(-1).values > 0.0 # detection_threshold # [B, num_queries]
+        detection_threshold = detection_threshold if detection_threshold is not None else 0.0
+        batch_keep = probas.max(-1).values > detection_threshold # detection_threshold # [B, num_queries]
 
         batch_metric = []
         # For each image in the batch
@@ -172,12 +173,28 @@ def main(
     final_score = torch.cat(final_score, dim=0)
 
     print("Final scores", final_score.shape)
-    print(f"Mean: {torch.mean(final_score, 0)}")
-    print(f"Std: {torch.std(final_score, 0)}")
+    mean = torch.mean(final_score, 0).detach().cpu()
+    std = torch.std(final_score, 0).detach().cpu()
+
+    print(f"Mean: {mean}")
+    print(f"Std: {std}")
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print("Time spent: {}".format(total_time_str))
+
+    if dist_utils.is_main_process():
+        output = {
+            "metric": metric,
+            "metric_threshold": metric_threshold,
+            "resume_from_checkpoint": resume_from_checkpoint,
+            "mean": mean,
+            "std": std,
+            "decoder_act": decoder_act
+        }
+        fname = f"temp/{decoder_act}-{metric}-{metric_threshold}-random.pt"
+        with open(fname, "wb") as f:
+            torch.save(output, f)
 
 
 if __name__ == "__main__":
