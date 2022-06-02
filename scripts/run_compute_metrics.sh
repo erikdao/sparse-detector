@@ -19,9 +19,9 @@ SEED=42
 #         --metric-threshold $m
 # done
 
-torchrun --nproc_per_node=8 $SCRIPT_DIR/compute_val_metrics.py zeros_ratio \
-        --detr-config-file "configs/decoder_entmax15_baseline.yml" \
+torchrun --nproc_per_node=8 $SCRIPT_DIR/compute_val_metrics.py gini \
+        --detr-config-file "configs/detr_baseline.yml" \
         --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
         --batch-size 6 \
         --num-workers 24 \
-        --decoder-act entmax15
+        --decoder-act softmax
