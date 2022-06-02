@@ -24,5 +24,4 @@ torchrun --nproc_per_node=8 $SCRIPT_DIR/compute_val_metrics.py zeros_ratio \
         --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
         --batch-size 6 \
         --num-workers 24 \
-        --decoder-act entmax15 \
-        --resume-from-checkpoint "checkpoints/v2_decoder_entmax15/checkpoint.pth"
+        --decoder-act entmax15

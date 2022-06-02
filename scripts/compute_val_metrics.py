@@ -193,9 +193,9 @@ def main(
             "decoder_act": decoder_act
         }
         if metric_threshold is not None:
-            fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
+            fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}-random.pt"
         else:
-            fname = f"outputs/metrics/{decoder_act}-{metric}.pt"
+            fname = f"outputs/metrics/{decoder_act}-{metric}-random.pt"
 
         with open(fname, "wb") as f:
             torch.save(output, f)
