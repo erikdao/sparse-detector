@@ -18,6 +18,9 @@ This section contains the log of the works that I have done in this project. I'm
     - In the implementation of the [paper](https://arxiv.org/abs/2105.04854) we looked at before (which is used in torchmetrics [code](https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/functional/gini.html)), the scoring function takes as input a 2D tensor w, it computes the Gini score for each row of the tensor, and average the scores over rows to get the final Gini score for w.  This works fine with softmax since no row in w would be all-zeros.
     - However, for sparsemax case, there are certainly rows in w that are all-zeros. The Gini score for those all-zero rows is 0.0 (as there is no inequality, in fact, it's a perfect equality). And since we're averaging the scores over rows, those all-zeros hurt the final score.
     - Since we want to measure the sparsity of an attention map, which essentially represents a distribution, I think we shouldn't compute the scores for each row and average them. Instead we can just flatten w into a single row and compute Gini one that single row.
+- After fixing the implementation of Gini scores, we've got results that are aligned with our hypothesis: `sparsemax` produces sparse attention maps, therefore its Gini score is higher than that of `entmax15` and `softmax`.
+![./notebooks/images/gini-scores.png](./notebooks/images/gini-scores.png)
+
 
 ### June 1, 2022
 - After a reminder from the supervisor, we've realized a flaw in the way we're computing the metrics. Specifically, the metrics should be computed for all attention maps from all queries, not just for those whose detection's confident scores meet a certain threshold. We need to compute the metrics again for all models.
