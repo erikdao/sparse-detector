@@ -42,8 +42,8 @@ Std: tensor([0.0080, 0.0062, 0.0084, 0.0063, 0.0075, 0.0074])
 Trained Sparsemax
 Mean: tensor([0.9912, 0.9942, 0.9959, 0.9947, 0.9955, 0.9958])
 Std: tensor([0.0024, 0.0012, 0.0009, 0.0014, 0.0010, 0.0012])
-
 ```
+- We have
 
 ### May 30, 2022
 - Today, we've computed the metrics for randomized models.
