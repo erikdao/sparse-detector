@@ -5,6 +5,7 @@ import json
 import math
 import os
 import sys
+from sparse_detector.configs import build_detr_config
 
 package_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, package_root)
@@ -121,17 +122,17 @@ def plot_attn_results(predictions, probabilities, image, image_size=None, ground
 @click.option('--seed', type=int, default=42)
 @click.option('--decoder-act', type=str, default='sparsemax')
 @click.option('--decoder-layer', type=int, default=-1)
-def main(image_path, checkpoint_path, seed, decoder_act, decoder_layer):
+@click.option('--detr-config-file', type=str, default=None)
+@click.pass_context
+def main(ctx, image_path, checkpoint_path, seed, decoder_act, decoder_layer, detr_config_file):
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    detr_config = build_detr_config(detr_config_file, params=ctx.params, device=device)
 
     click.echo("Reading input image")
     image = Image.open(image_path)
     image_id = str(image_path.name).split("/")[-1].split(".")[0]
-
-    # click.echo("Ad-hoc crop this image for inspecting the result")
-    # image = image.crop((180, 60, 430, 280))
 
     # Getting groundtruth annotations
     with open("data/COCO/annotations/instances_val2017.json", "r") as f:
@@ -159,14 +160,7 @@ def main(image_path, checkpoint_path, seed, decoder_act, decoder_layer):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
     click.echo("Building model")
-    model, criterion, postprocessors = build_model(
-        "resnet50", 1e-5, False, True, "sine", 256, 6, 6,
-        dim_feedforward=2048, dropout=0.1, num_queries=100,
-        bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
-        set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
-        nheads=8, pre_norm=True, dataset_file='coco', device=device,
-        decoder_act=decoder_act
-    )
+    model, criterion, postprocessors = build_model(**detr_config)
 
     click.echo("Load model from checkpoint")
     model.eval()
@@ -227,6 +221,13 @@ def main(image_path, checkpoint_path, seed, decoder_act, decoder_layer):
 
     plot_attn_results(items, probas, image, image.size, image_bboxes, f"temp/mha_{image_id}_{decoder_act}_dec-layer-{decoder_layer}.png")
 
+    print("Saving attention maps")
+    print(f"w={w}, h={h}")
+    output = {
+        "queries": queries.detach().cpu(),
+        "attentions": dec_attn_weights.detach().cpu()
+    }
+    torch.save(output, f"temp/{decoder_act}_attns_{image_id}.pt")
 
 if __name__ == "__main__":
     main()

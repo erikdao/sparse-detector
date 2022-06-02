@@ -17,26 +17,10 @@ sys.path.insert(0, package_root)
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.datasets.coco import NORMALIZATION
+from sparse_detector.datasets.coco import NORMALIZATION, CLASSES
 from sparse_detector.datasets import transforms as T
+from sparse_detector.configs import build_detr_config
 
-# COCO classes
-CLASSES = [
-    'N/A', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-    'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A',
-    'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-    'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack',
-    'umbrella', 'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
-    'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
-    'skateboard', 'surfboard', 'tennis racket', 'bottle', 'N/A', 'wine glass',
-    'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
-    'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
-    'chair', 'couch', 'potted plant', 'bed', 'N/A', 'dining table', 'N/A',
-    'N/A', 'toilet', 'N/A', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
-    'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A',
-    'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
-    'toothbrush'
-]
 
 # colors for visualization
 COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
@@ -76,9 +60,13 @@ def plot_results(pil_img, prob, boxes):
 @click.argument('image_path', type=click.File('rb'))
 @click.argument('checkpoint_path', type=click.File('rb'))
 @click.option('--iou-threshold', type=float, default=0.5)
-def main(image_path, checkpoint_path, iou_threshold):
+@click.option('--detr-config-file', type=str, default=None)
+@click.pass_context
+def main(ctx, image_path, checkpoint_path, iou_threshold, detr_config_file):
     torch.manual_seed(42)
     np.random.seed(42)
+    detr_config = build_detr_config(detr_config_file, params=ctx.params, device=device)
+    print(detr_config)
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -104,13 +92,7 @@ def main(image_path, checkpoint_path, iou_threshold):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
     click.echo("Building model")
-    model, criterion, postprocessors = build_model(
-        "resnet50", 1e-5, False, True, "sine", 256, 6, 6,
-        dim_feedforward=2048, dropout=0.1, num_queries=100,
-        bbox_loss_coef=5, giou_loss_coef=2, eos_coef=0.1, aux_loss=False,
-        set_cost_class=1, set_cost_bbox=5, set_cost_giou=2,
-        nheads=8, pre_norm=True, dataset_file='coco', device=device
-    )
+    model, criterion, postprocessors = build_model(**detr_config)
 
     click.echo("Load model from checkpoint")
     model.eval()

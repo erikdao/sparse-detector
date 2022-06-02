@@ -12,6 +12,9 @@ This section contains the log of the works that I have done in this project. I'm
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
 
+### June 2, 2022
+- Gini verification: we will take the attention maps from layers from different images, compute the Gini score for each map, and visual the attention maps to see if the Gini score really reflect the sparsity we want.xw
+
 ### June 1, 2022
 - After a reminder from the supervisor, we've realized a flaw in the way we're computing the metrics. Specifically, the metrics should be computed for all attention maps from all queries, not just for those whose detection's confident scores meet a certain threshold. We need to compute the metrics again for all models.
 
