@@ -20,8 +20,9 @@ SEED=42
 # done
 
 torchrun --nproc_per_node=8 $SCRIPT_DIR/compute_val_metrics.py gini \
-        --detr-config-file "configs/detr_baseline.yml" \
+        --detr-config-file "configs/decoder_sparsemax_baseline.yml" \
         --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
         --batch-size 6 \
         --num-workers 24 \
-        --decoder-act softmax
+        --decoder-act sparsemax \
+        --resume-from-checkpoint "checkpoints/v2_decoder_sparsemax/checkpoint.pth"
