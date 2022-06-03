@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini, gini_alternative, gini_sorted, zeros_ratio
+from sparse_detector.utils.metrics import gini_vector, gini_sorted, zeros_ratio
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config, load_base_configs, build_dataset_config
 from sparse_detector.datasets.loaders import build_dataloaders
@@ -116,62 +116,18 @@ def main(
 
         h, w = conv_features[0]['3'].tensors.shape[-2:]
 
-        # At this point the `attentions` matrix would have the following properties:
-        # - Length: 6 - output from 6 decoder's layers
-        # - Each item: [B, num_heads, num_queries, h*w]: each item contains the attentions
-        #              from each head for all images in the batch
-
-        pred_logits = outputs['pred_logits'].detach().cpu()  # [B, num_queries, num_classes]
-        probas = pred_logits.softmax(-1)[:, :, :-1]  # [B, num_queries, 91]
-        # Hack: > 0.0 so it will keep all attentions from all queries
-        detection_threshold = detection_threshold if detection_threshold is not None else 0.0
-        batch_keep = probas.max(-1).values > detection_threshold # detection_threshold # [B, num_queries]
-
-        batch_metric = []
-        # For each image in the batch
-        for img_idx, keep in enumerate(batch_keep):
-            assert keep.shape == (100,)
-            queries = keep.nonzero().squeeze(-1)  # [kept_queries,]
-            if len(queries) == 0:
-                continue
-            
-            num_heads = 8
-            num_queries = len(queries)
-            # List of attention maps from all decoder's layer for this particular image
-            # attn[img_idx] is of shape [num_heads, num_queries, h*w] (e.g., [8, 100, 1444])
-            img_attentions = [attn[img_idx].detach().cpu() for attn in attentions]
-            assert len(img_attentions) == 6
-            
-            image_metric = []
-            for layer_idx, layer_attns in enumerate(img_attentions):
-                # layer_attns of shape [num_heads, num_queries, D]
-                attn_metric = 0.0
-                for head in range(num_heads):  # iterate across heads
-                    if metric == 'zeros_ratio':
-                        attn_metric += zeros_ratio(layer_attns[head], threshold=metric_threshold)
-                    elif metric == 'gini':
-                        attn_metric += gini_sorted(layer_attns[head]) 
-                    # for query in queries:
-                    #     attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
-                    #     if metric == 'zeros_ratio':
-                    #         attn_metric += zeros_ratio(attn_q_h, threshold=metric_threshold)
-                    #     elif metric == 'gini':
-                    #         attn_metric += gini_sorted(attn_q_h)
-                
-                attn_metric /= num_heads
-                image_metric.append(attn_metric)
-            
-            image_metric_t = torch.stack(image_metric)
-            batch_metric.append(image_metric_t)
+        batch_attns = torch.stack(attentions)  # [B, nl, nh, Q, K]
+        B, nl, nh, Q, K = batch_attns.size()
+        batch_attns = batch_attns.view(nl, B, nh, Q, K)
+        if metric == 'gini':
+            batch_gini = gini_vector(batch_attns)
         
-        batch_metric_t = torch.stack(batch_metric)
-        batch_metric_score = torch.mean(batch_metric_t, 0)
+        dataset_metric.append(batch_gini.detach().cpu())
 
-        dataset_metric.extend(batch_metric)
         del attentions
         del conv_features
     
-    rank_gini = torch.stack(dataset_metric)
+    rank_gini = torch.cat(dataset_metric, dim=0)
     click.echo(f"Rank: {dist_config.rank}; Mean: {torch.mean(rank_gini, 0)}")
 
     final_score = dist_utils.all_gather(rank_gini)
@@ -188,22 +144,22 @@ def main(
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print("Time spent: {}".format(total_time_str))
 
-    if dist_utils.is_main_process():
-        output = {
-            "metric": metric,
-            "metric_threshold": metric_threshold,
-            "resume_from_checkpoint": resume_from_checkpoint,
-            "mean": mean,
-            "std": std,
-            "decoder_act": decoder_act
-        }
-        if metric_threshold is not None:
-            fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
-        else:
-            fname = f"outputs/metrics/v2-{decoder_act}-{metric}.pt"
+    # if dist_utils.is_main_process():
+    #     output = {
+    #         "metric": metric,
+    #         "metric_threshold": metric_threshold,
+    #         "resume_from_checkpoint": resume_from_checkpoint,
+    #         "mean": mean,
+    #         "std": std,
+    #         "decoder_act": decoder_act
+    #     }
+    #     if metric_threshold is not None:
+    #         fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
+    #     else:
+    #         fname = f"outputs/metrics/v2-{decoder_act}-{metric}.pt"
 
-        with open(fname, "wb") as f:
-            torch.save(output, f)
+    #     with open(fname, "wb") as f:
+    #         torch.save(output, f)
 
 
 if __name__ == "__main__":

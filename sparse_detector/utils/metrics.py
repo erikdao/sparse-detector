@@ -77,19 +77,29 @@ def gini_sorted(w: torch.Tensor) -> torch.Tensor:
 
 def gini_vector(w):
     """
-    w: [Q, K]
-    """
-    Q, K = w.size()
-    y, _ = torch.sort(w)  # [Q, K]
-    norm1_y = torch.sum(y, dim=-1, keepdim=True)
-    assert norm1_y.sum() != 0.0
+    Compute the Gini score for matrix w.
 
-    coeff = y.new_tensor([(K - (k+1) + 0.5)/K for k in range(K)])
-    coeffs = coeff.repeat(Q, 1)
+    This function assumes that is row (of dim K) is a probability distribution, thus, their norms
+    are not 0.0
+
+    Args:
+        w: [B, nh, Q, K] attention matrix, Q is the number of queries, K is the dim of attention map
+            corresponding to each query
+    
+    Return:
+        s: float - Gini score
+    """
+    assert w.dim() == 5
+    nl, B, nh, Q, K = w.size()
+    y, _ = torch.sort(w)  # [B, Q, K]
+    norm1_y = torch.sum(y, dim=-1, keepdim=True) # [B, nh, Q, 1]
+
+    coeffs = y.new_tensor([(K - (k+1) + 0.5)/K for k in range(K)]).repeat(nl, B, nh, Q, 1) # [B, Q, 1]
     yp = torch.mul(coeffs, y)
 
-    row_scores = 1 - 2 * (yp / norm1_y).sum(dim=-1)
-    return torch.mean(row_scores)
+    key_scores = 1 - 2 * (yp / norm1_y).sum(dim=-1)
+    gini = key_scores.view(key_scores.size(0), -1)
+    return gini.mean(1)
 
 
 def zeros_ratio(w: torch.Tensor, threshold: Optional[float] = None) -> float:
