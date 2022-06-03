@@ -75,6 +75,23 @@ def gini_sorted(w: torch.Tensor) -> torch.Tensor:
     return s
 
 
+def gini_vector(w):
+    """
+    w: [Q, K]
+    """
+    Q, K = w.size()
+    y, _ = torch.sort(w)  # [Q, K]
+    norm1_y = torch.sum(y, dim=-1, keepdim=True)
+    assert norm1_y.sum() != 0.0
+
+    coeff = y.new_tensor([(K - (k+1) + 0.5)/K for k in range(K)])
+    coeffs = coeff.repeat(Q, 1)
+    yp = torch.mul(coeffs, y)
+
+    row_scores = 1 - 2 * (yp / norm1_y).sum(dim=-1)
+    return torch.mean(row_scores)
+
+
 def zeros_ratio(w: torch.Tensor, threshold: Optional[float] = None) -> float:
     """
     Compute the zero ratio (i.e., # zero entries / # total entries) of a tensor
