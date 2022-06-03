@@ -144,16 +144,21 @@ def main(
             
             image_metric = []
             for layer_idx, layer_attns in enumerate(img_attentions):
+                # layer_attns of shape [num_heads, num_queries, D]
                 attn_metric = 0.0
-                for head in range(8):  # iterate across heads
-                    for query in queries:
-                        attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
-                        if metric == 'zeros_ratio':
-                            attn_metric += zeros_ratio(attn_q_h, threshold=metric_threshold)
-                        elif metric == 'gini':
-                            attn_metric += gini_sorted(attn_q_h)
+                for head in range(num_heads):  # iterate across heads
+                    if metric == 'zeros_ratio':
+                        attn_metric += zeros_ratio(layer_attns[head], threshold=metric_threshold)
+                    elif metric == 'gini':
+                        attn_metric += gini_sorted(layer_attns[head]) 
+                    # for query in queries:
+                    #     attn_q_h = layer_attns[head][query].view(w, h).detach().cpu()
+                    #     if metric == 'zeros_ratio':
+                    #         attn_metric += zeros_ratio(attn_q_h, threshold=metric_threshold)
+                    #     elif metric == 'gini':
+                    #         attn_metric += gini_sorted(attn_q_h)
                 
-                attn_metric /= (num_queries * num_heads)
+                attn_metric /= num_heads
                 image_metric.append(attn_metric)
             
             image_metric_t = torch.stack(image_metric)
@@ -195,7 +200,7 @@ def main(
         if metric_threshold is not None:
             fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
         else:
-            fname = f"outputs/metrics/{decoder_act}-{metric}.pt"
+            fname = f"outputs/metrics/v2-{decoder_act}-{metric}.pt"
 
         with open(fname, "wb") as f:
             torch.save(output, f)

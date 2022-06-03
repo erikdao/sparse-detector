@@ -57,17 +57,21 @@ def gini_sorted(w: torch.Tensor) -> torch.Tensor:
     The rows in `w` are first sorted in ascending order
     Reference: https://arxiv.org/pdf/0811.4706.pdf
     """
-    y = torch.ravel(w)
-    y, _ = torch.sort(y)
-    N = y.size(0)
-    norm1_y = y.sum()
-    if norm1_y == 0.0:
-        s = 0.0
-    else:
-        coeff = y.new_tensor([(N - (k+1) + 0.5) / N for k in range(N)])
-        yp = torch.mul(coeff, y)
-        s = 1 - 2 * (yp / norm1_y).sum()
+    s = 0.0
+    for row in w:
+        y = torch.ravel(row)
+        y, _ = torch.sort(y)
+        N = y.size(0)
+        norm1_y = y.sum()
+        if norm1_y == 0.0:
+            u = 0.0
+        else:
+            coeff = y.new_tensor([(N - (k+1) + 0.5) / N for k in range(N)])
+            yp = torch.mul(coeff, y)
+            u = 1 - 2 * (yp / norm1_y).sum()
+        s += u
     
+    s /= w.shape[0]
     return s
 
 
