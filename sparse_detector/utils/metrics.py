@@ -83,7 +83,7 @@ def gini_vector(w):
     are not 0.0
 
     Args:
-        w: [B, nh, Q, K] attention matrix, Q is the number of queries, K is the dim of attention map
+        w: [nl, B, nh, Q, K] attention matrix, Q is the number of queries, K is the dim of attention map
             corresponding to each query
     
     Return:
@@ -91,15 +91,15 @@ def gini_vector(w):
     """
     assert w.dim() == 5
     nl, B, nh, Q, K = w.size()
-    y, _ = torch.sort(w)  # [B, Q, K]
-    norm1_y = torch.sum(y, dim=-1, keepdim=True) # [B, nh, Q, 1]
+    y, _ = torch.sort(w)  # [nl, B, nh, Q, K]
+    norm1_y = torch.sum(y, dim=-1, keepdim=True) # [nl, B, nh, Q, 1]
 
-    coeffs = y.new_tensor([(K - (k+1) + 0.5)/K for k in range(K)]).repeat(nl, B, nh, Q, 1) # [B, Q, 1]
+    coeffs = y.new_tensor([(K - (k+1) + 0.5)/K for k in range(K)]).repeat(nl, B, nh, Q, 1) # [nl, B, nh, Q, K]
     yp = torch.mul(coeffs, y)
 
-    key_scores = 1 - 2 * (yp / norm1_y).sum(dim=-1)
+    key_scores = 1 - 2 * (yp / norm1_y).sum(dim=-1) # [nl, B, nh, Q,]
     gini = key_scores.view(key_scores.size(0), -1)
-    return gini.mean(1)
+    return gini.mean(-1)
 
 
 def zeros_ratio(w: torch.Tensor, threshold: Optional[float] = None) -> float:

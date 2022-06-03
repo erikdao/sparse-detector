@@ -116,9 +116,7 @@ def main(
 
         h, w = conv_features[0]['3'].tensors.shape[-2:]
 
-        batch_attns = torch.stack(attentions)  # [B, nl, nh, Q, K]
-        B, nl, nh, Q, K = batch_attns.size()
-        batch_attns = batch_attns.view(nl, B, nh, Q, K)
+        batch_attns = torch.stack(attentions)  # [nl, B, nh, Q, K]
         if metric == 'gini':
             batch_gini = gini_vector(batch_attns)
         
@@ -127,7 +125,7 @@ def main(
         del attentions
         del conv_features
     
-    rank_gini = torch.cat(dataset_metric, dim=0)
+    rank_gini = torch.stack(dataset_metric)
     click.echo(f"Rank: {dist_config.rank}; Mean: {torch.mean(rank_gini, 0)}")
 
     final_score = dist_utils.all_gather(rank_gini)
@@ -144,22 +142,22 @@ def main(
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print("Time spent: {}".format(total_time_str))
 
-    # if dist_utils.is_main_process():
-    #     output = {
-    #         "metric": metric,
-    #         "metric_threshold": metric_threshold,
-    #         "resume_from_checkpoint": resume_from_checkpoint,
-    #         "mean": mean,
-    #         "std": std,
-    #         "decoder_act": decoder_act
-    #     }
-    #     if metric_threshold is not None:
-    #         fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
-    #     else:
-    #         fname = f"outputs/metrics/v2-{decoder_act}-{metric}.pt"
+    if dist_utils.is_main_process():
+        output = {
+            "metric": metric,
+            "metric_threshold": metric_threshold,
+            "resume_from_checkpoint": resume_from_checkpoint,
+            "mean": mean,
+            "std": std,
+            "decoder_act": decoder_act
+        }
+        if metric_threshold is not None:
+            fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
+        else:
+            fname = f"outputs/metrics/{decoder_act}-{metric}.pt"
 
-    #     with open(fname, "wb") as f:
-    #         torch.save(output, f)
+        with open(fname, "wb") as f:
+            torch.save(output, f)
 
 
 if __name__ == "__main__":
