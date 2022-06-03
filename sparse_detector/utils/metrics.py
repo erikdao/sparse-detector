@@ -135,9 +135,10 @@ def zeros_ratio_vectorized(w: torch.Tensor, threshold: Optional[float] = None) -
     K = w.shape[-1]
 
     if threshold is not None:
-        x = torch.where(w > threshold, w, torch.tensor(0.0))
+        x = torch.where(w > threshold, w, w.new_tensor(0.0))
+    else:
+        x = w
     
     s = (x == 0.0).type(torch.uint8).sum(dim=-1) / K
-
     s = s.view(s.size(0), -1)
     return s.mean(-1)

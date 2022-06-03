@@ -11,6 +11,11 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+### June 4, 2022
+- We have vectorized two metric calculations, i.e., gini score and percentage of zero entries. This vectorization helps reduce running times from 30 mins, 15 mins to ~30 secs 😍.
+
+### June 3, 2022
+- Today we mostly work to vectorize metric calculation
 
 ### June 2, 2022
 - Gini verification: we will take the attention maps from layers from different images, compute the Gini score for each map, and visual the attention maps to see if the Gini score really reflect the sparsity we want.
@@ -20,30 +25,7 @@ This section contains the log of the works that I have done in this project. I'm
     - Since we want to measure the sparsity of an attention map, which essentially represents a distribution, I think we shouldn't compute the scores for each row and average them. Instead we can just flatten w into a single row and compute Gini one that single row.
 - After fixing the implementation of Gini scores, we've got results that are aligned with our hypothesis: `sparsemax` produces sparse attention maps, therefore its Gini score is higher than that of `entmax15` and `softmax`.
 ![./notebooks/images/gini-scores.png](./notebooks/images/gini-scores.png)
-- Gini scores (naive implementation)
-```
-Randomly initialized models
-[{'decoder_act': 'softmax',
-  'mean': tensor([0.2489, 0.2569, 0.2686, 0.2541, 0.2617, 0.2704]),
-  'std': tensor([0.0496, 0.0434, 0.0450, 0.0394, 0.0436, 0.0437])},
- {'decoder_act': 'entmax15',
-  'mean': tensor([0.8610, 0.8902, 0.8949, 0.8986, 0.8901, 0.8952]),
-  'std': tensor([0.0366, 0.0281, 0.0278, 0.0291, 0.0296, 0.0297])},
- {'decoder_act': 'sparsemax',
-  'mean': tensor([0.9760, 0.9817, 0.9795, 0.9841, 0.9807, 0.9816]),
-  'std': tensor([0.0054, 0.0042, 0.0060, 0.0041, 0.0051, 0.0052])}]
 
-Trained models
-[{'decoder_act': 'softmax',
-  'mean': tensor([0.9625, 0.9884, 0.9814, 0.9809, 0.9437, 0.9430]),
-  'std': tensor([0.0104, 0.0046, 0.0055, 0.0044, 0.0126, 0.0141])},
- {'decoder_act': 'entmax15',
-  'mean': tensor([0.9765, 0.9913, 0.9877, 0.9884, 0.9902, 0.9889]),
-  'std': tensor([0.0095, 0.0025, 0.0031, 0.0056, 0.0027, 0.0041])},
- {'decoder_act': 'sparsemax',
-  'mean': tensor([0.9940, 0.9961, 0.9973, 0.9966, 0.9970, 0.9971]),
-  'std': tensor([0.0016, 0.0008, 0.0006, 0.0008, 0.0007, 0.0008])}]
-```
 
 ### June 1, 2022
 - After a reminder from the supervisor, we've realized a flaw in the way we're computing the metrics. Specifically, the metrics should be computed for all attention maps from all queries, not just for those whose detection's confident scores meet a certain threshold. We need to compute the metrics again for all models.

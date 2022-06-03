@@ -47,7 +47,7 @@ def main(
     decoder_act, pre_norm, coco_path, num_workers, batch_size, detection_threshold,
     metric_threshold
 ):
-    if metric not in ['gini', 'zeros_ratio']:
+    if metric not in ['gini', 'zeros_ratio', 'paibb']:
         raise ValueError(f"Metric {metric} not supported! Quitting!")
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -110,17 +110,15 @@ def main(
                 )
             )
 
-        outputs = model(samples)
+        _ = model(samples)
         for hook in hooks:
             hook.remove()
-
-        h, w = conv_features[0]['3'].tensors.shape[-2:]
 
         batch_attns = torch.stack(attentions)  # [nl, B, nh, Q, K]
         if metric == 'gini':
             batch_metric = gini_vectorized(batch_attns)
         elif metric == 'zeros_ratio':
-            batch_metric = zeros_ratio_vectorized(batch_attns)
+            batch_metric = zeros_ratio_vectorized(batch_attns, metric_threshold)
         
         dataset_metric.append(batch_metric.detach().cpu())
 
@@ -128,7 +126,7 @@ def main(
         del conv_features
     
     rank_gini = torch.stack(dataset_metric)
-    click.echo(f"Rank: {dist_config.rank}; Mean: {torch.mean(rank_gini, 0)}")
+    click.echo(f"Rank: {dist_config.rank}; Shape={rank_gini.shape}, Mean: {torch.mean(rank_gini, 0)}")
 
     final_score = dist_utils.all_gather(rank_gini)
     final_score = torch.cat(final_score, dim=0)
@@ -153,11 +151,8 @@ def main(
             "std": std,
             "decoder_act": decoder_act
         }
-        if metric_threshold is not None:
-            fname = f"outputs/metrics/{decoder_act}-{metric}-{metric_threshold}.pt"
-        else:
-            fname = f"outputs/metrics/{decoder_act}-{metric}.pt"
 
+        fname = f"outputs/metrics/{decoder_act}-{metric}.pt"
         with open(fname, "wb") as f:
             torch.save(output, f)
 
