@@ -62,7 +62,7 @@ Std: tensor([0.0024, 0.0012, 0.0009, 0.0014, 0.0010, 0.0012])
 
 ### May 30, 2022
 - Today, we've computed the metrics for randomized models.
-
+- We're working on the next metric, i.., percentage of attentions inside bounding boxes (PAIBB). To this end, we'll inspect the output of the `HungarianMatcher`.
 
 ### May 29, 2022
 - The `decoder_sparsemax_retest-config` re-experiment was max out it time on Berzelius (3 days). We've resumed it and continued training.

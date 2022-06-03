@@ -42,6 +42,18 @@ def build_detr_config(config_file: Path, params: Optional[Any] = None, device: O
     return base_configs
 
 
+def build_matcher_config(config_file: Path) -> Dict[str, Any]:
+    base_configs = load_config(config_file)
+    base_configs = flatten_dict(base_configs)
+
+    config = dict(
+        set_cost_class=base_configs['set_cost_class'],
+        set_cost_bbox=base_configs['set_cost_bbox'],
+        set_cost_giou=base_configs['set_cost_giou']
+    )
+    return config
+
+
 def build_trainer_config(base_configs: Dict[str, Any], params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     trainer_config = flatten_dict(base_configs)
     if params is not None:

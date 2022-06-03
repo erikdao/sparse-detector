@@ -1,7 +1,7 @@
 """
 Useful metrics for measuring sparsity
 """
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 
@@ -142,3 +142,8 @@ def zeros_ratio_vectorized(w: torch.Tensor, threshold: Optional[float] = None) -
     s = (x == 0.0).type(torch.uint8).sum(dim=-1) / K
     s = s.view(s.size(0), -1)
     return s.mean(-1)
+
+
+def paibb_vectorized(matcher: Any, outputs: Any, targets: Any):
+    matching_indices = matcher(outputs, targets)
+    import pdb; pdb.set_trace()

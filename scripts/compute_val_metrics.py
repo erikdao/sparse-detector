@@ -22,11 +22,12 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini_vectorized, zeros_ratio_vectorized
+from sparse_detector.utils.metrics import gini_vectorized, zeros_ratio_vectorized, paibb_vectorized
 from sparse_detector.utils import distributed  as dist_utils
-from sparse_detector.configs import build_detr_config, load_base_configs, build_dataset_config
+from sparse_detector.configs import build_detr_config, build_matcher_config, load_base_configs, build_dataset_config
 from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.utils.logging import MetricLogger
+from sparse_detector.models.matcher import build_matcher
 
 
 @click.command()
@@ -83,6 +84,17 @@ def main(
     if dist_config.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
 
+    matcher = None
+    if metric == 'paibb':
+        print("Building matcher for metric: Percentage of Attentions Inside Bounding Boxes")
+        matcher_config = build_matcher_config(detr_config_file)
+        print(matcher_config)
+        matcher = build_matcher(
+            set_cost_class=matcher_config['set_cost_class'],
+            set_cost_bbox=matcher_config['set_cost_bbox'],
+            set_cost_giou=matcher_config['set_cost_giou']
+        )
+    
     print("Building dataset")
     data_loader, _ = build_dataloaders(
         'val', dataset_config['coco_path'], dataset_config['batch_size'],
@@ -110,7 +122,7 @@ def main(
                 )
             )
 
-        _ = model(samples)
+        outputs = model(samples)
         for hook in hooks:
             hook.remove()
 
@@ -119,6 +131,8 @@ def main(
             batch_metric = gini_vectorized(batch_attns)
         elif metric == 'zeros_ratio':
             batch_metric = zeros_ratio_vectorized(batch_attns, metric_threshold)
+        elif metric == 'paibb':
+            batch_metric = paibb_vectorized(matcher, outputs, targets)
         
         dataset_metric.append(batch_metric.detach().cpu())
 
