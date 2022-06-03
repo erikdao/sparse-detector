@@ -75,12 +75,14 @@ def gini_sorted(w: torch.Tensor) -> torch.Tensor:
     return s
 
 
-def gini_vector(w):
+def gini_vectorized(w):
     """
     Compute the Gini score for matrix w.
 
     This function assumes that is row (of dim K) is a probability distribution, thus, their norms
     are not 0.0
+    The last dimension of `w` is first sorted in ascending order
+    Reference: https://arxiv.org/pdf/0811.4706.pdf
 
     Args:
         w: [nl, B, nh, Q, K] attention matrix, Q is the number of queries, K is the dim of attention map
@@ -120,3 +122,22 @@ def zeros_ratio(w: torch.Tensor, threshold: Optional[float] = None) -> float:
         s += r
     s /= w.shape[0]
     return s
+
+
+def zeros_ratio_vectorized(w: torch.Tensor, threshold: Optional[float] = None) -> float:
+    """
+    Compute the zero ratio (i.e., # zero entries / # total entries) of a tensor
+
+    Args:
+        w: [nl, B, nh, Q, K] - input tensor
+        threshold: should be use for softmax tensors
+    """
+    K = w.shape[-1]
+
+    if threshold is not None:
+        x = torch.where(w > threshold, w, torch.tensor(0.0))
+    
+    s = (x == 0.0).type(torch.uint8).sum(dim=-1) / K
+
+    s = s.view(s.size(0), -1)
+    return s.mean(-1)

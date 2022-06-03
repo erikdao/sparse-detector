@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from sparse_detector.models import build_model
 from sparse_detector.models.utils import describe_model
-from sparse_detector.utils.metrics import gini_vector, gini_sorted, zeros_ratio
+from sparse_detector.utils.metrics import gini_vectorized, zeros_ratio_vectorized
 from sparse_detector.utils import distributed  as dist_utils
 from sparse_detector.configs import build_detr_config, load_base_configs, build_dataset_config
 from sparse_detector.datasets.loaders import build_dataloaders
@@ -118,9 +118,11 @@ def main(
 
         batch_attns = torch.stack(attentions)  # [nl, B, nh, Q, K]
         if metric == 'gini':
-            batch_gini = gini_vector(batch_attns)
+            batch_metric = gini_vectorized(batch_attns)
+        elif metric == 'zeros_ratio':
+            batch_metric = zeros_ratio_vectorized(batch_attns)
         
-        dataset_metric.append(batch_gini.detach().cpu())
+        dataset_metric.append(batch_metric.detach().cpu())
 
         del attentions
         del conv_features
