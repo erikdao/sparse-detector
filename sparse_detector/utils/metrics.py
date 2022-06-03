@@ -83,10 +83,13 @@ def zeros_ratio(w: torch.Tensor, threshold: Optional[float] = None) -> float:
         w: input tensor
         threshold: should be use for softmax tensors
     """
-    x = w.clone().detach()
-    if threshold is not None:
-        x = torch.where(x > threshold, x, torch.tensor(0.0))
-    
-    wh, ww = x.size()
-    zero_count = (x == 0.0).type(torch.uint8).sum()
-    return zero_count * 1.0 / (wh * ww)
+    s = 0.0
+    for row in w:
+        x = row
+        if threshold is not None:
+            x = torch.where(row > threshold, row, torch.tensor(0.0))
+        
+        r = (x == 0.0).type(torch.uint8).sum() / x.size()
+        s += r
+    s /= w.shape[0]
+    return s

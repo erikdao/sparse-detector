@@ -19,7 +19,7 @@ SEED=42
 #         --metric-threshold $m
 # done
 
-torchrun --nproc_per_node=1 $SCRIPT_DIR/compute_val_metrics.py gini \
+torchrun --nproc_per_node=4 $SCRIPT_DIR/compute_val_metrics.py gini \
         --detr-config-file "configs/decoder_sparsemax_baseline.yml" \
         --coco-path /proj/azizpour-group/users/cuongdao/data/COCO \
         --batch-size 6 \
