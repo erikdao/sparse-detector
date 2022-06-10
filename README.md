@@ -11,8 +11,16 @@ This section contains the log of the works that I have done in this project. I'm
 **TODO:**
 - Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
 
+
+### June 10, 2022
+- We're computing the PAIBB on the validation. As discussed with our supervisor, we agreed to compute the score only on matching groundtruth-prediction pairs. Furthermore, we'll average the attention weights across attention heads.
+
+### June 5, 2022
+- It's interesting to see that, for `sparsemax`, if we don't average attention's weights across heads for each layer, then each attention map corresponding to each head seems to only focuses on one particular part of the object. So the question is whether we should average the attention's weights before computing PAIBB.
+
 ### June 4, 2022
 - We have vectorized two metric calculations, i.e., gini score and percentage of zero entries. This vectorization helps reduce running times from 30 mins, 15 mins to ~30 secs 😍.
+- We've also worked on the **Percentrage of Attentions inside Bounding Boxes** (PAIBB) metric. First, we visualize the Hungarian matching between model's output (`pred_logits` and `pred_boxes`) and the groundtruth boxes.
 
 ### June 3, 2022
 - Today we mostly work to vectorize metric calculation

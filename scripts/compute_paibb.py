@@ -6,7 +6,13 @@ python -m scripts.compute_paibb \
     --detr-config-file configs/decoder_sparsemax_baseline.yml \
     --resume-from-checkpoint checkpoints/v2_decoder_sparsemax/checkpoint.pth \
     --decoder-act sparsemax
+
+python -m scripts.compute_paibb \
+    --detr-config-file configs/detr_baseline.yml \
+    --resume-from-checkpoint checkpoints/v2_baseline_detr/checkpoint.pth \
+    --decoder-act softmax
 """
+from base64 import decode
 import os
 import sys
 import warnings
@@ -107,11 +113,13 @@ def main(
 ):
     torch.manual_seed(seed)
     np.random.seed(seed)
+    random.seed(seed)
 
     device = torch.device("cuda")
     base_config = load_base_configs()
     detr_config = build_detr_config(detr_config_file, params=None, device=device)
-    detr_config["average_cross_attn_weights"] = False
+    # Important, we'll average the attention's weights across head for PAIBB
+    detr_config["average_cross_attn_weights"] = True
 
     matcher_config = build_matcher_config(detr_config_file)
     dataset_config = build_dataset_config(base_config["dataset"], params=ctx.params)
@@ -139,7 +147,7 @@ def main(
     data_loader, _ = build_dataloaders(
         "val",
         dataset_config["coco_path"],
-        1, # dataset_config["batch_size"],
+        dataset_config["batch_size"],
         False,
         dataset_config["num_workers"],
     )
@@ -151,61 +159,68 @@ def main(
         [1/0.229, 1/0.224, 1/0.225]
     )
 
-    batch_images, batch_targets = next(itertools.islice(
-        metric_logger.log_every(data_loader, log_freq=10, header=None, prefix="val"), 5, None
-    ))
-    batch_images = batch_images.to(device)
-    batch_targets = [{k: v.to(device) for k, v in t.items()} for t in batch_targets]
+    for batch_id, (batch_images, batch_targets) in enumerate(
+        metric_logger.log_every(data_loader, log_freq=10, header=None, prefix="val")
+    ):
+        if batch_id > 0:
+            break
+        batch_images = batch_images.to(device)
+        batch_targets = [{k: v.to(device) for k, v in t.items()} for t in batch_targets]
 
-    print("Getting predictions")
-    conv_features, dec_attn_weights = [], []
+        conv_features, dec_attn_weights = [], []
 
-    hooks = [
-        model.backbone[-2].register_forward_hook(
-            lambda self, input, output: conv_features.append(output)
-        ),
-        model.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
-            lambda self, input, output: dec_attn_weights.append(output[1])
-        ),
-    ]
+        # Consider the attentions from the last decoder layer
+        hooks = [
+            model.backbone[-2].register_forward_hook(
+                lambda self, input, output: conv_features.append(output)
+            ),
+            model.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
+                lambda self, input, output: dec_attn_weights.append(output[1])
+            ),
+        ]
 
-    outputs = model(batch_images.to(device))
+        outputs = model(batch_images.to(device))
 
-    for hook in hooks:
-        hook.remove()
+        for hook in hooks:
+            hook.remove()
 
-    pred_logits = outputs['pred_logits'].detach().cpu()
-    pred_boxes = outputs['pred_boxes'].detach().cpu()
-    print(f"pred_logits={pred_logits.shape};\t pred_boxes={pred_boxes.shape}")
+        conv_features = conv_features[0]
+        h, w = conv_features['3'].tensors.shape[-2:]
+        attentions = dec_attn_weights[0].detach()  # [B, nh, num_queries, K]
 
-    conv_features = conv_features[0]
-    h, w = conv_features['3'].tensors.shape[-2:]
-    attentions = dec_attn_weights[0].detach()  # [B, nh, num_queries, K]
-    B, num_heads, num_queries, K = attentions.size()
+        indices = matcher(outputs, batch_targets)
 
-    print("Matching predictions and groundtruth")
-    indices = matcher(outputs, batch_targets)
+        # For each image in the batch:
+        for i, (pred_indices, gt_indices) in enumerate(indices):
+            img_attns, targets = attentions[i], batch_targets[i]  # [num_heads, num_queries, K]
+            img_h, img_w = targets['orig_size']
+            img_id = targets['image_id'].item()
+            img_attns = img_attns.view(img_attns.size(0), h, w)
 
-    # For each image in the batch:
-    for i, (pred_indices, gt_indices) in enumerate(indices):
-        print(f"i={i}, pred_indices={pred_indices}\t gt_indices={gt_indices}")
-        img_attns = attentions[i]  # [num_heads, num_queries, K]
-        targets = batch_targets[i]
-        img_h, img_w = targets['orig_size']
-        img_name = str(targets['image_id'].item()).rjust(12, '0')
+            rescaled_maps = F.interpolate(img_attns.unsqueeze(0), (img_h, img_w), mode='bilinear').squeeze(0)
+            rescaled_gt_box = rescale_bboxes(targets['boxes'].detach().cpu(), (img_w, img_h)) # [num_gt, 4]
 
-        for (pred_idx, gt_idx) in zip(pred_indices, gt_indices):
-            attn_maps = img_attns[:, pred_idx, :] # [num_heads, K]
-            attn_maps = attn_maps.view(attn_maps.size(0), h, w)  # [num_heads, h, w]
-            rescale_maps = F.interpolate(attn_maps.unsqueeze(0), (img_h, img_w), mode='bilinear') # [1, num_heads, img_h, img_w]
-            matched_gt_bboxes = targets['boxes'][gt_idx] # [4]
-            print(attn_maps.shape, rescale_maps.shape)
+            # Take only the maps that are corresponding to pred_indices
+            selected_pred_maps = rescaled_maps[pred_indices]
 
-            for h_i, attn_map in enumerate(rescale_maps.squeeze(0)):
-                fig, ax = plt.subplots(figsize=(10, 10))
-                ax.imshow(attn_map.detach().cpu(), cmap='viridis')
-                fig.savefig(f"temp/{img_name}_head-{h_i}_query-{pred_idx}.png", bbox_inches='tight')
-            
+            # For each groundtruth-prediction matching pair
+            for (pred_id, pred_attn, gt_id, gt_box) in zip(pred_indices.unsqueeze(0).T, selected_pred_maps, gt_indices.unsqueeze(0).T, rescaled_gt_box):
+                xmin, ymin, xmax, ymax = gt_box.type(torch.int32)
+                attn_in_gtbox = pred_attn[ymin:ymax, xmin:xmax]
+                paibb = attn_in_gtbox.sum() / pred_attn.sum()
+                
+                res = {
+                    "img_id": img_id,
+                    "query_id": pred_id.item(),
+                    "gt_id": gt_id.item(),
+                    "gt_area": ((xmax - xmin) * (ymax - ymin)).item(),
+                    "paibb": paibb.detach().cpu().item()
+                }
+                print(res)
+
+        del conv_features
+        del dec_attn_weights
+
 
 if __name__ == "__main__":
     main()
