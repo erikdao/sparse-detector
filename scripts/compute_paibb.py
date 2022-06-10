@@ -11,6 +11,12 @@ python -m scripts.compute_paibb \
     --detr-config-file configs/detr_baseline.yml \
     --resume-from-checkpoint checkpoints/v2_baseline_detr/checkpoint.pth \
     --decoder-act softmax
+
+python -m scripts.compute_paibb \
+    --detr-config-file configs/decoder_entmax15_baseline.yml \
+    --resume-from-checkpoint checkpoints/v2_decoder_entmax15/checkpoint.pth \
+    --decoder-act entmax15
+
 """
 from base64 import decode
 import os
@@ -162,8 +168,6 @@ def main(
     for batch_id, (batch_images, batch_targets) in enumerate(
         metric_logger.log_every(data_loader, log_freq=10, header=None, prefix="val")
     ):
-        if batch_id > 0:
-            break
         batch_images = batch_images.to(device)
         batch_targets = [{k: v.to(device) for k, v in t.items()} for t in batch_targets]
 
@@ -191,6 +195,7 @@ def main(
         indices = matcher(outputs, batch_targets)
 
         # For each image in the batch:
+        batch_scores = []
         for i, (pred_indices, gt_indices) in enumerate(indices):
             img_attns, targets = attentions[i], batch_targets[i]  # [num_heads, num_queries, K]
             img_h, img_w = targets['orig_size']
@@ -216,10 +221,19 @@ def main(
                     "gt_area": ((xmax - xmin) * (ymax - ymin)).item(),
                     "paibb": paibb.detach().cpu().item()
                 }
-                print(res)
+                batch_scores.append(res)
 
         del conv_features
         del dec_attn_weights
+
+        # Write batch score
+        fname = f"paibb_{decoder_act}.txt"
+        fpath = Path(package_root) / "outputs" / "metrics" / "paibb" / fname
+        with open(fpath, "a") as f:
+            for score in batch_scores:
+                print(score, file=f)
+
+        batch_scores = []
 
 
 if __name__ == "__main__":

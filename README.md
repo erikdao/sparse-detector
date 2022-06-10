@@ -14,6 +14,27 @@ This section contains the log of the works that I have done in this project. I'm
 
 ### June 10, 2022
 - We're computing the PAIBB on the validation. As discussed with our supervisor, we agreed to compute the score only on matching groundtruth-prediction pairs. Furthermore, we'll average the attention weights across attention heads.
+- We've observed that for some images, the PAIBB scores are zero. That seems to happen for small object. We'll need to dive deeper into this by inspecting and visualizing the attentions of the model for those images.
+```
+Sparsemax baseline
+{'img_id': 632, 'query_id': 3, 'gt_id': 2, 'gt_area': 83809, 'paibb': 0.12491247802972794}
+{'img_id': 632, 'query_id': 10, 'gt_id': 9, 'gt_area': 5612, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 16, 'gt_id': 5, 'gt_area': 324, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 29, 'gt_id': 12, 'gt_area': 272, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 36, 'gt_id': 4, 'gt_area': 240, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 38, 'gt_id': 13, 'gt_area': 468, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 40, 'gt_id': 7, 'gt_area': 196, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 51, 'gt_id': 14, 'gt_area': 9240, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 56, 'gt_id': 1, 'gt_area': 11726, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 58, 'gt_id': 15, 'gt_area': 1080, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 60, 'gt_id': 16, 'gt_area': 984, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 67, 'gt_id': 11, 'gt_area': 136, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 79, 'gt_id': 3, 'gt_area': 108, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 82, 'gt_id': 8, 'gt_area': 114, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 86, 'gt_id': 6, 'gt_area': 224, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 91, 'gt_id': 10, 'gt_area': 588, 'paibb': 0.0}
+{'img_id': 632, 'query_id': 93, 'gt_id': 0, 'gt_area': 297, 'paibb': 0.0}
+```
 
 ### June 5, 2022
 - It's interesting to see that, for `sparsemax`, if we don't average attention's weights across heads for each layer, then each attention map corresponding to each head seems to only focuses on one particular part of the object. So the question is whether we should average the attention's weights before computing PAIBB.
