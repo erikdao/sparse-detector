@@ -161,7 +161,7 @@ def main(
     metric_logger = MetricLogger(delimiter=" ")
 
     for batch_id, (batch_images, batch_targets) in enumerate(
-        metric_logger.log_every(data_loader, log_freq=10, header=None, prefix="val")
+        metric_logger.log_every(data_loader, log_freq=100, header=None, prefix="val")
     ):
         batch_images = batch_images.to(device)
         batch_targets = [{k: v.to(device) for k, v in t.items()} for t in batch_targets]
@@ -229,8 +229,6 @@ def main(
                     "gt_area": gt_area.item(),
                     "paibb": paibb.detach().cpu().item()
                 }
-                if img_id == 80340:
-                    print(res)
                 batch_scores.append(res)
 
         del conv_features
