@@ -1,5 +1,11 @@
 """
 Visualizing self-attention of the model
+
+Run
+python -m scripts.visualize_attentions data/COCO/val2017/000000082807.jpg \
+    checkpoints/v2_decoder_sparsemax/checkpoint.pth \
+    --decoder-act sparsemax \
+    --detr-config-file configs/decoder_sparsemax_baseline.yml
 """
 import json
 import math
@@ -145,7 +151,7 @@ def main(ctx, image_path, checkpoint_path, seed, decoder_act, decoder_layer, det
     # The customer RandomResize outputs both the image and target even if
     # the target is None, so we perform the transform separately and only
     # feed the image to the next standard torch transform pipeline
-    resize_transform = T.RandomResize([800])
+    resize_transform = T.RandomResize([800], max_size=1333)
     resize_image, _ = resize_transform(image)
 
     transforms = pth_transform.Compose([

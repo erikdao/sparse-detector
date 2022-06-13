@@ -153,17 +153,12 @@ def main(
     data_loader, _ = build_dataloaders(
         "val",
         dataset_config["coco_path"],
-        dataset_config["batch_size"],
+        1,  # dataset_config["batch_size"],
         False,
         dataset_config["num_workers"],
     )
 
     metric_logger = MetricLogger(delimiter=" ")
-
-    reverse_normalize = T.Normalize(
-        [-0.485/0.229, -0.456/0.224, -0.406/0.225],
-        [1/0.229, 1/0.224, 1/0.225]
-    )
 
     for batch_id, (batch_images, batch_targets) in enumerate(
         metric_logger.log_every(data_loader, log_freq=10, header=None, prefix="val")
@@ -200,27 +195,42 @@ def main(
             img_attns, targets = attentions[i], batch_targets[i]  # [num_heads, num_queries, K]
             img_h, img_w = targets['orig_size']
             img_id = targets['image_id'].item()
-            img_attns = img_attns.view(img_attns.size(0), h, w)
+            img_attns = img_attns.view(img_attns.size(0), h, w)  # [num_queries, h, w]
+            
+            img_data = {
+                "attentions": img_attns.detach().cpu(),
+                "image_id": img_id,
+                "orig_size": targets['orig_size'].detach().cpu()
+            }
+            torch.save(img_data, Path(package_root) / "outputs" / "attentions" / f"{decoder_act}" / (f"{img_id}".rjust(12, '0') + '.pt'))
 
-            rescaled_maps = F.interpolate(img_attns.unsqueeze(0), (img_h, img_w), mode='bilinear').squeeze(0)
-            rescaled_gt_box = rescale_bboxes(targets['boxes'].detach().cpu(), (img_w, img_h)) # [num_gt, 4]
+            # import ipdb; ipdb.set_trace()
 
-            # Take only the maps that are corresponding to pred_indices
-            selected_pred_maps = rescaled_maps[pred_indices]
+            for (pred_id, gt_id) in zip(pred_indices, gt_indices):
+                attns = img_attns[pred_id]  # [h, w]
+                gt_box = targets['boxes'][gt_id]
 
-            # For each groundtruth-prediction matching pair
-            for (pred_id, pred_attn, gt_id, gt_box) in zip(pred_indices.unsqueeze(0).T, selected_pred_maps, gt_indices.unsqueeze(0).T, rescaled_gt_box):
-                xmin, ymin, xmax, ymax = gt_box.type(torch.int32)
-                attn_in_gtbox = pred_attn[ymin:ymax, xmin:xmax]
-                paibb = attn_in_gtbox.sum() / pred_attn.sum()
+                rescaled_map = F.interpolate(attns.unsqueeze(0).unsqueeze(0), (img_h, img_w), mode='bilinear').squeeze(0).squeeze(0)
+                rescaled_gt_box = rescale_bboxes(gt_box.detach().cpu(), (img_w, img_h)) # [num_gt, 4]
+
+                # Get the real coordinates to compute the ground-truth area
+                xmin, ymin, xmax, ymax = rescaled_gt_box
+
+                gt_area = (xmax - xmin) * (ymax - ymin)
+                # Convert the real coords into integer coords for slicing
+                xmin, ymin, xmax, ymax = rescaled_gt_box.type(torch.int32)
+                attn_in_gtbox = rescaled_map[ymin:ymax, xmin:xmax]
+                paibb = attn_in_gtbox.sum() / rescaled_map.sum()
                 
                 res = {
                     "img_id": img_id,
                     "query_id": pred_id.item(),
                     "gt_id": gt_id.item(),
-                    "gt_area": ((xmax - xmin) * (ymax - ymin)).item(),
+                    "gt_area": gt_area.item(),
                     "paibb": paibb.detach().cpu().item()
                 }
+                if img_id == 80340:
+                    print(res)
                 batch_scores.append(res)
 
         del conv_features

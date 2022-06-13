@@ -8,9 +8,9 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
-**TODO:**
-- Check the implementation of Gini score. Usually a gini score = `1` indicates high sparsity wheareas `0` indicates low sparsity. It seems that our results are opposite.
-
+### June 13, 2022
+- The first inspection into the results of PAIBB showed us that there are errors in calculating the ground-truth area due to the rounding of coordinates.
+- Also, we want to make sure that all the indexing, transformation of coordinates in COCO and other formats are correct.
 
 ### June 10, 2022
 - We're computing the PAIBB on the validation. As discussed with our supervisor, we agreed to compute the score only on matching groundtruth-prediction pairs. Furthermore, we'll average the attention weights across attention heads.
