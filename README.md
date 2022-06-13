@@ -8,6 +8,9 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+### June 14, 2022
+- We've observed that when calculating PAIBB, if we set the batch size `> 1`, attention maps from some images got padded to the ones of the image with largest size. This got screwed up later when those maps are resized to the size of the original image. Hence, messing up the computation of PAIBB, i.e., many queries have PAIBB = 0.0 while their corresponding attention maps do lie inside the bounding boxes.
+
 ### June 13, 2022
 - The first inspection into the results of PAIBB showed us that there are errors in calculating the ground-truth area due to the rounding of coordinates.
 - Also, we want to make sure that all the indexing, transformation of coordinates in COCO and other formats are correct.
