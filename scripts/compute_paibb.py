@@ -18,11 +18,9 @@ python -m scripts.compute_paibb \
     --decoder-act entmax15
 
 """
-from base64 import decode
 import os
 import sys
 import warnings
-import itertools
 import random
 
 warnings.filterwarnings("ignore")
@@ -36,30 +34,12 @@ import torch.nn.functional as F
 
 import click
 import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-
-plt.rcParams["savefig.bbox"] = "tight"
-import matplotlib.patches as patches
-
-import seaborn as sns
-
-sns.set(font_scale=1.4)
-sns.set_style(
-    "white",
-    {
-        "axes.edgecolor": "#475569",
-        "font.family": ["sans-serif"],
-        "font.sans-serif": ["Arial", "Droid Sans", "sans-serif"],
-    },
-)
 
 from sparse_detector.configs import (
     build_dataset_config,
     build_detr_config,
     build_matcher_config,
     load_base_configs,
-    load_config,
 )
 from sparse_detector.models import build_model
 from sparse_detector.models.matcher import build_matcher
@@ -68,8 +48,6 @@ from sparse_detector.datasets.loaders import build_dataloaders
 from sparse_detector.utils.logging import MetricLogger
 import sparse_detector.datasets.transforms as T
 from sparse_detector.utils.box_ops import box_cxcywh_to_xyxy
-from sparse_detector.visualizations import ColorPalette
-from sparse_detector.datasets.coco import CLASSES
 
 
 def rescale_bboxes(out_bbox, size):
@@ -79,25 +57,11 @@ def rescale_bboxes(out_bbox, size):
     return b
 
 
-def draw_box_on_ax(box, ax, text=None, color=None):
-    xmin, ymin, xmax, ymax = box
-    width = xmax - xmin
-    height = ymax - ymin
-
-    color = color or ColorPalette.GREEN
-    rect = patches.Rectangle((xmin, ymin), width, height,
-                    fill=False, color=color, linewidth=2, zorder=1000, axes=ax)
-    ax.add_artist(rect)
-
-    if text:
-        ax.text(xmin, ymin, text, fontsize=14, bbox=dict(facecolor=ColorPalette.GREEN, alpha=0.5))
-
-
 @click.command()
 @click.option("--seed", type=int, default=42)
 @click.option("--detr-config-file", default="", help="Path to config file")
 @click.option("--decoder-act", type=str, default="sparsemax")
-@click.option("--batch-size", default=6, type=int, help="Batch size per GPU")
+@click.option("--batch-size", default=1, type=int, help="Batch size per GPU")
 @click.option("--resume-from-checkpoint", default="", help="resume from checkpoint")
 @click.option(
     "--detection-threshold",
@@ -203,8 +167,6 @@ def main(
                 "orig_size": targets['orig_size'].detach().cpu()
             }
             torch.save(img_data, Path(package_root) / "outputs" / "attentions" / f"{decoder_act}" / (f"{img_id}".rjust(12, '0') + '.pt'))
-
-            # import ipdb; ipdb.set_trace()
 
             for (pred_id, gt_id) in zip(pred_indices, gt_indices):
                 attns = img_attns[pred_id]  # [h, w]
