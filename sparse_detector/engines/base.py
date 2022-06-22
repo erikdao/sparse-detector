@@ -31,8 +31,18 @@ def build_detr_optims(
         lr_drop: Number of epochs after which learning rates are dropped
         weight_decay: Optimizer's weight decay
     """
+    # Constructing the param dicts. For alpha_entmax, we don't want to decay alpha
     param_dicts = [
-        {"params": [p for n, p in model.named_parameters() if "backbone" not in n and p.requires_grad]},
+        {
+            "params": [p for n, p in model.named_parameters() if ("backbone" not in n) and ("pre_alpha" in n) and p.requires_grad],
+            "weight_decay": 0.0,
+            "lr": lr * 10  # TODO: Fix this! It's only for debugging
+        },
+        {
+            "params": [p for n, p in model.named_parameters() if ("backbone" not in n) and ("pre_alpha" not in n) and p.requires_grad],
+            "lr": lr,
+            "weight_decay": weight_decay,
+        },
         {
             "params": [p for n, p in model.named_parameters() if "backbone" in n and p.requires_grad],
             "lr": lr_backbone,
