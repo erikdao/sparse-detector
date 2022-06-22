@@ -152,7 +152,8 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
             sampler_train.set_epoch(epoch)
         train_stats, global_step = train_one_epoch(
             model, criterion, data_loader_train, optimizer, device, epoch,
-            trainer_config['clip_max_norm'], global_step=global_step, wandb_run=wandb_run, log_freq=base_configs['logging'].get('log_freq')
+            trainer_config['clip_max_norm'], global_step=global_step, wandb_run=wandb_run, log_freq=base_configs['logging'].get('log_freq'),
+            monitor_alpha=(decoder_act == "alpha_entmax")
         )
         lr_scheduler.step()
         if exp_dir:

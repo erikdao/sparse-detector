@@ -64,18 +64,49 @@ def train_one_epoch(
     max_norm: float = 0,
     global_step: Optional[int] = None,
     wandb_run: Optional[Any] = None,
-    log_freq: Optional[int] = 50
+    log_freq: Optional[int] = 50,
+    monitor_alpha: Optional[bool] = False,
 ):
+    """
+    Perform one epoch of training
+
+    Parameters:
+        model: The model
+        criterion: Hungarian-based loss
+        data_loader: The training data loader
+        optimizer: nn.Optim instance
+        epoch: current epoch of training
+        max_norm:
+        global_step: starting step at the beginning of the epoch
+        wandb_run: W&B run
+        log_freq: Frequency to log/print logs
+        monitor_alpha: Whether to monitor the alpha parameter, only applicable for alpha_entmax
+    """
     model.train()
     criterion.train()
     metric_logger = MetricLogger(delimiter="  ", wandb_run=wandb_run)
     metric_logger.add_meter('lr', SmoothedValue(window_size=1, fmt='{value:.6f}'))
     metric_logger.add_meter('class_error', SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
+    alpha_metric = "alpha/layer_{layer}-head_{head}"
+
+    if monitor_alpha:
+        for l in range(6):
+            for h in range(8):
+                metric_logger.add_meter(alpha_metric.format(layer=l, head=h), SmoothedValue(window_size=1, fmt='{value:.6f}'))
 
     for (samples, targets), g_step in metric_logger.log_every(data_loader, log_freq=log_freq, global_step=global_step, header=header, prefix="train", epoch=epoch):
+        
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        if monitor_alpha:
+            alpha = []
+            hooks = [
+                model.module.transformer.decoder.layers[i].multihead_attn.register_forward_hook(
+                    lambda self, input, output: alpha.append(self.get_alpha())
+                ) for i in range(6)  # TODO: Remove this hardcode
+            ]
 
         outputs = model(samples)
         loss_dict = criterion(outputs, targets)
@@ -104,6 +135,20 @@ def train_one_epoch(
         metric_logger.update(loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
         metric_logger.update(class_error=loss_dict_reduced['class_error'])
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+        if monitor_alpha:
+            for hook in hooks:
+                hook.remove()
+        
+            # alpha: list of length 6, each element is a tensor of shape 8
+            alpha_values = dict()
+            for l in range(6):
+                for h in range(8):
+                    metric_key = alpha_metric.format(layer=l, head=h)
+                    alpha_values[metric_key] = alpha[l][h].detach()
+            
+            metric_logger.update(**alpha_values)
+            alpha = []
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
