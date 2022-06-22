@@ -108,6 +108,9 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
     model, criterion, postprocessors = build_model(**detr_config)
     model.to(device)
 
+    if wandb_run is not None:
+        wandb_run.watch(model, log="gradients")
+
     model_without_ddp = model
     if dist_config.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[dist_config.gpu])
