@@ -16,7 +16,7 @@ from entmax import sparsemax, entmax15, entmax_bisect
 
 from sparse_detector.models.tvmax import TV2DFunction
 
-VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax', 'entmax15', 'alpha_entmax']
+VALID_ACTIVATION = ["softmax", "sparsemax", "tvmax", "entmax15", "alpha_entmax"]
 
 
 def tvmax2d(X: Tensor) -> Tensor:
@@ -27,7 +27,7 @@ def tvmax2d(X: Tensor) -> Tensor:
     # Hacky way, need to figure out how to make tvmax works on batch
     for i in range(X.size(0)):
         X[i] = tvmax(X[i])
-    
+
     return X
 
 
@@ -41,16 +41,27 @@ def alpha_entmax(X: Tensor, alpha) -> Tensor:
 
     X = X.view(batch_size, num_heads, query_len, key_len)
 
-    expanded_alpha = alpha.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)  # [1, num_heads, 1, 1]
-    expanded_alpha = expanded_alpha.expand((batch_size, -1, query_len, 1))  # [batch_size, num_heads, query_len, 1]
-    p_star = entmax_bisect(X, expanded_alpha)  # [batch_size, num_heads, query_len, key_len]
+    expanded_alpha = (
+        alpha.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+    )  # [1, num_heads, 1, 1]
+    expanded_alpha = expanded_alpha.expand(
+        (batch_size, -1, query_len, 1)
+    )  # [batch_size, num_heads, query_len, 1]
+    p_star = entmax_bisect(
+        X, expanded_alpha
+    )  # [batch_size, num_heads, query_len, key_len]
     p_star = p_star.view(Bh, query_len, key_len)
     return p_star
 
 
 def scaled_dot_product_attention(
-    q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0,
-    activation: str = "softmax", alpha: Optional[Any] = None
+    q: Tensor,
+    k: Tensor,
+    v: Tensor,
+    attn_mask: Optional[Tensor] = None,
+    dropout_p: float = 0.0,
+    activation: str = "softmax",
+    alpha: Optional[Any] = None,
 ) -> Tuple[Tensor, Tensor]:
     """
     Modified version of scaled dot-production attention, support sparse activation functions
@@ -62,21 +73,21 @@ def scaled_dot_product_attention(
     attn = torch.bmm(q, k.transpose(-2, -1))
     if attn_mask is not None:
         attn += attn_mask
-    
+
     # This is the HEART of the first sparse experiment
     if activation not in VALID_ACTIVATION:
         raise RuntimeError(f"Unsupported activation function {activation}")
-    elif activation == 'softmax':
+    elif activation == "softmax":
         attn = F.softmax(attn, dim=-1)
-    elif activation == 'sparsemax':
+    elif activation == "sparsemax":
         attn = sparsemax(attn, dim=-1)
-    elif activation == 'entmax15':
+    elif activation == "entmax15":
         attn = entmax15(attn, dim=-1)
-    elif activation == 'alpha_entmax':
+    elif activation == "alpha_entmax":
         attn = alpha_entmax(attn, alpha)
-    elif activation == 'tvmax':  # Total variation 2D
+    elif activation == "tvmax":  # Total variation 2D
         attn = tvmax2d(attn)
-        
+
     if dropout_p > 0.0:
         attn = F.dropout(attn, p=dropout_p)
     # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
@@ -89,8 +100,17 @@ class SparseMultiheadAttention(nn.Module):
     A simplified implementation of multihead attention, support sparse activation functions
     besides softmax
     """
-    def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.0, activation: str = 'softmax', device=None, dtype=None) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
+
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int,
+        dropout: float = 0.0,
+        activation: str = "softmax",
+        device=None,
+        dtype=None,
+    ) -> None:
+        factory_kwargs = {"device": device, "dtype": dtype}
 
         super().__init__()
         assert embed_dim % num_heads == 0
@@ -101,7 +121,9 @@ class SparseMultiheadAttention(nn.Module):
         self.dropout = dropout
         self.activation = activation
 
-        self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
+        self.in_proj_weight = Parameter(
+            torch.empty((3 * embed_dim, embed_dim), **factory_kwargs)
+        )
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
 
         self.out_proj = nn.Linear(embed_dim, embed_dim, **factory_kwargs)
@@ -115,16 +137,18 @@ class SparseMultiheadAttention(nn.Module):
 
     def _reset_parameters(self):
         xavier_uniform_(self.in_proj_weight)
-        constant_(self.in_proj_bias, 0.)
+        constant_(self.in_proj_bias, 0.0)
         xavier_uniform_(self.out_proj.weight)
-        constant_(self.out_proj.bias, 0.)
-    
+        constant_(self.out_proj.bias, 0.0)
 
     def forward(
-        self, query: Tensor, key: Tensor, value: Tensor,
+        self,
+        query: Tensor,
+        key: Tensor,
+        value: Tensor,
         attn_mask: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
-        average_attn_weights: bool = True
+        average_attn_weights: bool = True,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         TODO: Implement the missing logics with attn_mask as in Pytorch's implementation.
@@ -137,10 +161,14 @@ class SparseMultiheadAttention(nn.Module):
         tgt_len, bsz, embed_dim = query.shape
         src_len, _, _ = key.shape
 
-        assert key.shape == value.shape, f"key shape {key.shape} does not match value shape {value.shape}"
+        assert (
+            key.shape == value.shape
+        ), f"key shape {key.shape} does not match value shape {value.shape}"
 
         # compute in-projection
-        q, k, v = F._in_projection_packed(query, key, value, self.in_proj_weight, self.in_proj_bias)
+        q, k, v = F._in_projection_packed(
+            query, key, value, self.in_proj_weight, self.in_proj_bias
+        )
 
         # prepare attention mask
         if attn_mask is not None:
@@ -150,14 +178,20 @@ class SparseMultiheadAttention(nn.Module):
             if attn_mask.dim() == 2:
                 correct_2d_size = (tgt_len, src_len)
                 if attn_mask.shape != correct_2d_size:
-                    raise RuntimeError(f"The shape of the 2D attn_mask is {attn_mask.shape}, but should be {correct_2d_size}.")
+                    raise RuntimeError(
+                        f"The shape of the 2D attn_mask is {attn_mask.shape}, but should be {correct_2d_size}."
+                    )
                 attn_mask = attn_mask.unsqueeze(0)
             elif attn_mask.dim() == 3:
                 correct_3d_size = (bsz * self.num_heads, tgt_len, src_len)
             if attn_mask.shape != correct_3d_size:
-                raise RuntimeError(f"The shape of the 3D attn_mask is {attn_mask.shape}, but should be {correct_3d_size}.")
+                raise RuntimeError(
+                    f"The shape of the 3D attn_mask is {attn_mask.shape}, but should be {correct_3d_size}."
+                )
             else:
-                raise RuntimeError(f"attn_mask's dimension {attn_mask.dim()} is not supported")
+                raise RuntimeError(
+                    f"attn_mask's dimension {attn_mask.dim()} is not supported"
+                )
 
         # prep key padding mask
         if key_padding_mask is not None and key_padding_mask.dtype == torch.uint8:
@@ -166,19 +200,36 @@ class SparseMultiheadAttention(nn.Module):
         #
         # reshape q, k, v for multihead attention and make em batch first
         #
-        q = q.contiguous().view(tgt_len, bsz * self.num_heads, self.head_dim).transpose(0, 1)
-        k = k.contiguous().view(k.shape[0], bsz * self.num_heads, self.head_dim).transpose(0, 1)
-        v = v.contiguous().view(v.shape[0], bsz * self.num_heads, self.head_dim).transpose(0, 1)
+        q = (
+            q.contiguous()
+            .view(tgt_len, bsz * self.num_heads, self.head_dim)
+            .transpose(0, 1)
+        )
+        k = (
+            k.contiguous()
+            .view(k.shape[0], bsz * self.num_heads, self.head_dim)
+            .transpose(0, 1)
+        )
+        v = (
+            v.contiguous()
+            .view(v.shape[0], bsz * self.num_heads, self.head_dim)
+            .transpose(0, 1)
+        )
 
         # update source sequence length after adjustments
         src_len = k.size(1)
-    
+
         # merge key padding and attention masks
         if key_padding_mask is not None:
-            assert key_padding_mask.shape == (bsz, src_len), \
-                f"expecting key_padding_mask shape of {(bsz, src_len)}, but got {key_padding_mask.shape}"
-            key_padding_mask = key_padding_mask.view(bsz, 1, 1, src_len).   \
-                expand(-1, self.num_heads, -1, -1).reshape(bsz * self.num_heads, 1, src_len)
+            assert key_padding_mask.shape == (
+                bsz,
+                src_len,
+            ), f"expecting key_padding_mask shape of {(bsz, src_len)}, but got {key_padding_mask.shape}"
+            key_padding_mask = (
+                key_padding_mask.view(bsz, 1, 1, src_len)
+                .expand(-1, self.num_heads, -1, -1)
+                .reshape(bsz * self.num_heads, 1, src_len)
+            )
             if attn_mask is None:
                 attn_mask = key_padding_mask
 
@@ -195,13 +246,19 @@ class SparseMultiheadAttention(nn.Module):
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, alpha)
-        attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
+        attn_output, attn_output_weights = scaled_dot_product_attention(
+            q, k, v, attn_mask, dropout_p, self.activation, alpha
+        )
+        attn_output = (
+            attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
+        )
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
 
         # optionally average attention weights over heads
-        attn_output_weights = attn_output_weights.view(bsz, self.num_heads, tgt_len, src_len)
+        attn_output_weights = attn_output_weights.view(
+            bsz, self.num_heads, tgt_len, src_len
+        )
         if average_attn_weights:
             attn_output_weights = attn_output_weights.sum(dim=1) / self.num_heads
 

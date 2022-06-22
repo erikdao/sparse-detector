@@ -19,7 +19,7 @@ SCRIPT_DIR=$PROJ_DIR/sparse_detector/engines
 SEED=42
 
 torchrun --nproc_per_node=6 $SCRIPT_DIR/train.py \
-    --exp-name "decoder_alpha_entmax_base" \
+    --exp-name "v2_decoder_alpha_entmax_base" \
     --detr-config-file "configs/decoder_alpha_entmax.yml" \
     --decoder-act "alpha_entmax" \
     --coco-path data/COCO \

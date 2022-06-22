@@ -8,6 +8,8 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+### June 23, 2022
+- Next we want to visualize the gradients of `alpha` and other parameters in the network to compare the differences between them, which would be helpful in tunning the learning rate for `pre_alpha`.
 
 ### June 22, 2022
 - Feeling hopeless, we've tried a random hparams tunning for sparsemax model, specifically, we've set the `bbox` and `giou` coefficients to 3 and 3.
