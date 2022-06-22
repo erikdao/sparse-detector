@@ -3,7 +3,7 @@ Sparse attention modules
 """
 import math
 from multiprocessing.sharedctypes import Value
-from typing import Tuple, Optional
+from typing import Any, Tuple, Optional
 
 import torch
 from torch import Tensor
@@ -12,14 +12,14 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.nn.init import xavier_uniform_, constant_
 
-from entmax import sparsemax, entmax15
+from entmax import sparsemax, entmax15, entmax_bisect
 
 from sparse_detector.models.tvmax import TV2DFunction
 
 VALID_ACTIVATION = ['softmax', 'sparsemax', 'tvmax', 'entmax15', 'alpha_entmax']
 
 
-def tvmax2d(X: Tensor) -> None:
+def tvmax2d(X: Tensor) -> Tensor:
     """
     X: (B, Nt, Ns)
     """
@@ -31,9 +31,26 @@ def tvmax2d(X: Tensor) -> None:
     return X
 
 
+def alpha_entmax(X: Tensor, alpha) -> Tensor:
+    """
+    Alpha entmax
+    """
+    Bh, query_len, key_len = X.size()
+    num_heads = 8  # TODO: parameterize this!
+    batch_size = Bh // num_heads
+
+    X = X.view(batch_size, num_heads, query_len, key_len)
+
+    expanded_alpha = alpha.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)  # [1, num_heads, 1, 1]
+    expanded_alpha = expanded_alpha.expand((batch_size, -1, query_len, 1))  # [batch_size, num_heads, query_len, 1]
+    p_star = entmax_bisect(X, expanded_alpha)  # [batch_size, num_heads, query_len, key_len]
+    p_star = p_star.view(Bh, query_len, key_len)
+    return p_star
+
+
 def scaled_dot_product_attention(
     q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor] = None, dropout_p: float = 0.0,
-    activation: str = "softmax"
+    activation: str = "softmax", alpha: Optional[Any] = None
 ) -> Tuple[Tensor, Tensor]:
     """
     Modified version of scaled dot-production attention, support sparse activation functions
@@ -55,10 +72,11 @@ def scaled_dot_product_attention(
         attn = sparsemax(attn, dim=-1)
     elif activation == 'entmax15':
         attn = entmax15(attn, dim=-1)
+    elif activation == 'alpha_entmax':
+        attn = alpha_entmax(attn, alpha)
     elif activation == 'tvmax':  # Total variation 2D
         attn = tvmax2d(attn)
         
-
     if dropout_p > 0.0:
         attn = F.dropout(attn, p=dropout_p)
     # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
@@ -87,6 +105,11 @@ class SparseMultiheadAttention(nn.Module):
         self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
 
         self.out_proj = nn.Linear(embed_dim, embed_dim, **factory_kwargs)
+
+        if activation == "alpha_entmax":
+            self.pre_alpha = Parameter(torch.randn(num_heads))
+        else:
+            self.pre_alpha = None
 
         self._reset_parameters()
 
@@ -164,10 +187,15 @@ class SparseMultiheadAttention(nn.Module):
         if not self.training:
             dropout_p = 0.0
 
+        if self.activation == "alpha_entmax":
+            alpha = self.get_alpha()
+        else:
+            alpha = None
+
         #
         # (deep breath) calculate attention and out projection
         #
-        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation)
+        attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v, attn_mask, dropout_p, self.activation, alpha)
         attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
         attn_output = F.linear(attn_output, self.out_proj.weight, self.out_proj.bias)
         attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
@@ -182,3 +210,7 @@ class SparseMultiheadAttention(nn.Module):
             attn_output = attn_output.squeeze(1)
             attn_output_weights = attn_output_weights.squeeze(0)
         return attn_output, attn_output_weights
+
+    def get_alpha(self) -> Tensor:
+        alpha = 1 + torch.sigmoid(self.pre_alpha)
+        return torch.clamp(alpha, min=1.01, max=2)
