@@ -8,6 +8,13 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+
+### July 3, 2022
+- Over the past 10 days, we've been off of logging the work.
+- However, we tried several experiments with learnable sparsity (i.e., `alpha-entmax`). The results have been pretty promising. `Alpha-entmax` basically is on par with softmax model on detection performance. The learned alphas at different heads in different decoder layers have some interesting patterns worthy for discussion.
+- One thing we've noticed is that after the 200th epoch, when the learning rate is reduced by 10x, the performance of `alpha-entmax` model dropped, and the gap between its and the softmax one is more visible. This suggests that we might not decrease learning for the `alpha` parameters themselves or the whole `alpha-entmax` model.
+- Also, we want to benchmark `alpha-entmax` against all metrics we currently have, and add some visualization of the learned attentions.
+
 ### June 23, 2022
 - Next we want to visualize the gradients of `alpha` and other parameters in the network to compare the differences between them, which would be helpful in tunning the learning rate for `pre_alpha`.
 
