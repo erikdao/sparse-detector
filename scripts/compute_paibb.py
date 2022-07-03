@@ -17,6 +17,10 @@ python -m scripts.compute_paibb \
     --resume-from-checkpoint checkpoints/v2_decoder_entmax15/checkpoint.pth \
     --decoder-act entmax15
 
+python -m scripts.compute_paibb \
+    --detr-config-file configs/decoder_alpha_entmax.yml \
+    --resume-from-checkpoint checkpoints/v2_decoder_a-entmax_alpha-lr=1e-3/checkpoint.pth \
+    --decoder-act alpha_entmax
 """
 import os
 import sys

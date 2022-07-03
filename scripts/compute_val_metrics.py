@@ -208,7 +208,7 @@ def main(
             "decoder_act": decoder_act,
         }
 
-        fname = f"outputs/metrics/{decoder_act}-{metric}.pt"
+        fname = f"outputs/metrics/{decoder_act}-{metric}-random.pt"
         with open(fname, "wb") as f:
             torch.save(output, f)
 

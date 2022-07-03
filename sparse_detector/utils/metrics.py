@@ -146,4 +146,4 @@ def zeros_ratio_vectorized(w: torch.Tensor, threshold: Optional[float] = None) -
 
 def paibb_vectorized(matcher: Any, outputs: Any, targets: Any):
     matching_indices = matcher(outputs, targets)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
