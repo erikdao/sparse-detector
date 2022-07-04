@@ -10,6 +10,7 @@ This section contains the log of the works that I have done in this project. I'm
 
 ### July 4, 2022
 - We need a helper function/notebook that produces visualizations containing input image, attention maps, detection bounding boxes, etc. for a given input image by different models.
+- We're experimenting with `alpha-entmax` without learning rate decay (for alpha) after 200 epochs
 
 ### July 3, 2022
 - Over the past 10 days, we've been off of logging the work.
