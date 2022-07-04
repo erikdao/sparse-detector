@@ -8,6 +8,8 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+### July 4, 2022
+- We need a helper function/notebook that produces visualizations containing input image, attention maps, detection bounding boxes, etc. for a given input image by different models.
 
 ### July 3, 2022
 - Over the past 10 days, we've been off of logging the work.
