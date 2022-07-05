@@ -146,6 +146,7 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
             lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
             start_epoch = checkpoint['epoch'] + 1
             global_step = checkpoint['global_step'] + 1
+            print(f"start_epoch = {start_epoch}; global_step = {global_step}")
         print(f"Resumming from checkpoint {resume_from_checkpoint}")
 
     print("Start training...")

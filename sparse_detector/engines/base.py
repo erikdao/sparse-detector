@@ -12,6 +12,7 @@ import torch.optim as optim
 from sparse_detector.utils import distributed as dist_utils
 from sparse_detector.datasets.coco_eval import CocoEvaluator
 from sparse_detector.utils.logging import MetricLogger, SmoothedValue
+from sparse_detector.utils.lr_sheduler import StepLRExcludeAlpha
 
 
 def build_detr_optims(
@@ -20,6 +21,7 @@ def build_detr_optims(
     lr_backbone: Optional[float] = None,
     lr_drop: Optional[int] = None,
     weight_decay: Optional[float] = None,
+    activation: Optional[str] = None,
 ) -> Any:
     """Build optimizer and learning rate scheduler for DETR.
     DETR uses different learning rates for the backbone and the transformer detector
@@ -49,7 +51,11 @@ def build_detr_optims(
         },
     ]
     optimizer = optim.AdamW(param_dicts, lr=lr, weight_decay=weight_decay)
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, lr_drop)
+    if activation == "alpha_entmax":
+        lr_scheduler = StepLRExcludeAlpha(optimizer, lr_drop)
+        print("Learning rate scheduler is StepLRExcludeAlpha!")
+    else:
+        lr_scheduler = optim.lr_scheduler.StepLR(optimizer, lr_drop)
     
     return optimizer, lr_scheduler
 
