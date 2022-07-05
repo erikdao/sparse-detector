@@ -37,6 +37,8 @@ def build_detr_config(config_file: Path, params: Optional[Any] = None, device: O
     
     # Manual surgery
     base_configs['lr_backbone'] = float(base_configs['lr_backbone'])
+    if 'lr_alpha' in base_configs:
+        base_configs['lr_alpha'] = float(base_configs['lr_alpha'])
     base_configs['device'] = device
 
     return base_configs

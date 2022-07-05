@@ -21,7 +21,7 @@ def build_detr_optims(
     lr_backbone: Optional[float] = None,
     lr_drop: Optional[int] = None,
     weight_decay: Optional[float] = None,
-    activation: Optional[str] = None,
+    lr_alpha: Optional[float] = None
 ) -> Any:
     """Build optimizer and learning rate scheduler for DETR.
     DETR uses different learning rates for the backbone and the transformer detector
@@ -34,12 +34,17 @@ def build_detr_optims(
         weight_decay: Optimizer's weight decay
     """
     # Constructing the param dicts. For alpha_entmax, we don't want to decay alpha
-    param_dicts = [
-        {
+    param_dicts = []
+
+    if lr_alpha is not None:
+        print(f"lr_alpha={lr_alpha}")
+        param_dicts.append({
             "params": [p for n, p in model.named_parameters() if ("backbone" not in n) and ("pre_alpha" in n) and p.requires_grad],
             "weight_decay": 0.0,
-            "lr": lr * 10  # TODO: Fix this! It's only for debugging
-        },
+            "lr": lr_alpha
+        })
+
+    param_dicts += [
         {
             "params": [p for n, p in model.named_parameters() if ("backbone" not in n) and ("pre_alpha" not in n) and p.requires_grad],
             "lr": lr,
@@ -50,8 +55,9 @@ def build_detr_optims(
             "lr": lr_backbone,
         },
     ]
+
     optimizer = optim.AdamW(param_dicts, lr=lr, weight_decay=weight_decay)
-    if activation == "alpha_entmax":
+    if lr_alpha is not None:
         lr_scheduler = StepLRExcludeAlpha(optimizer, lr_drop)
         print("Learning rate scheduler is StepLRExcludeAlpha!")
     else:

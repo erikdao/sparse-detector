@@ -76,11 +76,13 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, resume_from_checkpo
         lr=trainer_config['lr'],
         lr_backbone=detr_config['lr_backbone'],
         lr_drop=trainer_config['lr_drop'],
-        weight_decay=trainer_config['weight_decay']
+        weight_decay=trainer_config['weight_decay'],
+        lr_alpha=trainer_config['lr'] * 10
     )
 
     # optimizer.param_groups is a list, the first item in the param_groups
     # is likely the ones for alphas
+    assert len(optimizer.param_groups[0]['params']) == 6
     import ipdb; ipdb.set_trace()
 
 

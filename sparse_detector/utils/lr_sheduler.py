@@ -36,9 +36,9 @@ class StepLRExcludeAlpha(lr_scheduler.StepLR):
             learning_rates = []
             for group in self.optimizer.param_groups:
                 if len(group["params"]) == 6:  # `alpha` parameters group
-                    learning_rates.append[group["lr"]]
+                    learning_rates.append(group["lr"])
                 else:
-                    learning_rates.append[group["lr"] * self.gamma]
+                    learning_rates.append(group["lr"] * self.gamma)
 
             return learning_rates
 

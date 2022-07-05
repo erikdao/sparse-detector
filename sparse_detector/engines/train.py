@@ -134,7 +134,8 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         lr=trainer_config['lr'],
         lr_backbone=detr_config['lr_backbone'],
         lr_drop=trainer_config['lr_drop'],
-        weight_decay=trainer_config['weight_decay']
+        weight_decay=trainer_config['weight_decay'],
+        lr_alpha=trainer_config['lr'] * 10,  # TODO: don't hardcode
     )
 
     global_step = 0  # Initialize the global step
@@ -143,9 +144,18 @@ def main(ctx, detr_config_file, exp_name, seed, decoder_act, coco_path,
         model_without_ddp.load_state_dict(checkpoint['model'])
         if 'optimizer' in checkpoint and 'lr_scheduler' in checkpoint and 'epoch' in checkpoint:
             optimizer.load_state_dict(checkpoint['optimizer'])
-            lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
             start_epoch = checkpoint['epoch'] + 1
             global_step = checkpoint['global_step'] + 1
+
+            if decoder_act == "alpha_entmax":
+                print("Adjusting lr_scheduler state from checkpoint to meet "
+                      "the setup of new experiment: not decaying alpha learning rates!")
+                lr_state_dict = checkpoint['lr_scheduler']
+                lr_state_dict['_last_lr'][0] = trainer_config['lr'] * 10
+                print(lr_state_dict)
+                lr_scheduler.load_state_dict(lr_state_dict)
+            else:
+                lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
             print(f"start_epoch = {start_epoch}; global_step = {global_step}")
         print(f"Resumming from checkpoint {resume_from_checkpoint}")
 
