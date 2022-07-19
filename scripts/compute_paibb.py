@@ -143,7 +143,7 @@ def main(
             ),
             model.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
                 lambda self, input, output: dec_attn_weights.append(output[1])
-            ),
+            ), # output: attn_output, attn_weights
         ]
 
         outputs = model(batch_images.to(device))
