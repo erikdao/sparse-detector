@@ -8,6 +8,9 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
+### July 20, 2022
+- We've added a notebook for visualizing the dataset and producing the figures neede for the thesis report.
+
 ### July 4, 2022
 - We need a helper function/notebook that produces visualizations containing input image, attention maps, detection bounding boxes, etc. for a given input image by different models.
 - We're experimenting with `alpha-entmax` without learning rate decay (for alpha) after 200 epochs
