@@ -220,6 +220,7 @@ def main(ctx, image_path, checkpoint_path, seed, decoder_act, decoder_layer, det
     h, w = conv_features['3'].tensors.shape[-2:]
 
     queries = keep.nonzero()
+    print("queries", queries)
     items = []
     for idx, bbox in zip(queries, bboxes_scaled):
         items.append((dec_attn_weights[0, idx].view(h, w).detach().cpu().numpy(), idx))
@@ -227,13 +228,13 @@ def main(ctx, image_path, checkpoint_path, seed, decoder_act, decoder_layer, det
 
     plot_attn_results(items, probas, image, image.size, image_bboxes, f"temp/mha_{image_id}_{decoder_act}_dec-layer-{decoder_layer}.png")
 
-    print("Saving attention maps")
-    print(f"w={w}, h={h}")
-    output = {
-        "queries": queries.detach().cpu(),
-        "attentions": dec_attn_weights.detach().cpu()
-    }
-    torch.save(output, f"temp/{decoder_act}_attns_{image_id}.pt")
+    # print("Saving attention maps")
+    # print(f"w={w}, h={h}")
+    # output = {
+    #     "queries": queries.detach().cpu(),
+    #     "attentions": dec_attn_weights.detach().cpu()
+    # }
+    # torch.save(output, f"temp/{decoder_act}_attns_{image_id}.pt")
 
 if __name__ == "__main__":
     main()
