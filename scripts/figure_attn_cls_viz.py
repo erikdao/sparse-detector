@@ -1,7 +1,6 @@
 """
 An ad-hoc script to visualize the attention for each object class of all models
 """
-import json
 import os
 import sys
 from pathlib import Path
@@ -63,13 +62,13 @@ def load_model(config_file_name, model_checkpoint_dir):
 
 
 def load_image(img_id):
-    # coco_path = Path(package_root) / "data" / "COCO"
-    # img_path = coco_path / "val2017" / (f"{img_id}".rjust(12, '0') + '.jpg')
-    img_path = "misc/input_images/IMG_2948.JPG"
+    coco_path = Path(package_root) / "data" / "COCO"
+    img_path = coco_path / "val2017" / (f"{img_id}".rjust(12, '0') + '.jpg')
     pil_img = Image.open(img_path)
 
     resize_transform = T.RandomResize([800], max_size=1333)
     resize_image, _ = resize_transform(pil_img)
+    print("resize_image", resize_image.size)
 
     transforms = pth_transforms.Compose([
         pth_transforms.ToTensor(),
@@ -80,7 +79,7 @@ def load_image(img_id):
     return input_tensor, pil_img
 
 
-def main():
+def main(image_id, box_annotations, categories):
     # image_id = 491130
     # box_annotations = [
     #     {'bbox': [100.67, 115.06, 314.97, 362.42], 'category': 'person', 'id': 1, 'image_id': 491130},
@@ -88,23 +87,14 @@ def main():
     #     {'bbox': [52.49, 152.53, 62.78, 104.91], 'category': 'person', 'id': 1, 'image_id': 491130}
     # ]
     # categories = {1: "person", 36: "snowboard"}
-    image_id = 17905
-    box_annotations = [
-        {'bbox': [232.52, 133.19, 60.15, 147.66], 'category': 'traffic light', 'id': 10, 'image_id': image_id},
-        # {'bbox': [431.63, 576.13, 37.97, 63.87], 'category': 'fire hydrant', 'id': 11, 'image_id': image_id},
-        {'bbox': [81.27, 229.19, 119.39, 364.68], 'category': 'person', 'id': 1, 'image_id': image_id}
-    ]
-
-    # categories = {1: "person", 10: "traffic light", 11: "fire hydrant"}
-    categories = {"1":"person","2":"bicycle","3":"car","4":"motorcycle","5":"airplane","6":"bus","7":"train","8":"truck","9":"boat","10":"traffic light","11":"fire hydrant","13":"stop sign","14":"parking meter","15":"bench","16":"bird","17":"cat","18":"dog","19":"horse","20":"sheep","21":"cow","22":"elephant","23":"bear","24":"zebra","25":"giraffe","27":"backpack","28":"umbrella","31":"handbag","32":"tie","33":"suitcase","34":"frisbee","35":"skis","36":"snowboard","37":"sports ball","38":"kite","39":"baseball bat","40":"baseball glove","41":"skateboard","42":"surfboard","43":"tennis racket","44":"bottle","46":"wine glass","47":"cup","48":"fork","49":"knife","50":"spoon","51":"bowl","52":"banana","53":"apple","54":"sandwich","55":"orange","56":"broccoli","57":"carrot","58":"hot dog","59":"pizza","60":"donut","61":"cake","62":"chair","63":"couch","64":"potted plant","65":"bed","67":"dining table","70":"toilet","72":"tv","73":"laptop","74":"mouse","75":"remote","76":"keyboard","77":"cell phone","78":"microwave","79":"oven","80":"toaster","81":"sink","82":"refrigerator","84":"book","85":"clock","86":"vase","87":"scissors","88":"teddy bear","89":"hair drier","90":"toothbrush"}
 
     input_tensor, image = load_image(image_id)
 
     model_list = {
-        "softmax": ("detr_baseline.yml", "v2_baseline_detr"),
+        # "softmax": ("detr_baseline.yml", "v2_baseline_detr"),
         "sparsemax": ("decoder_sparsemax_baseline.yml", "v2_decoder_sparsemax"),
-        "entmax15": ("decoder_entmax15_baseline.yml", "v2_decoder_entmax15"),
-        "alpha_entmax": ("decoder_alpha_entmax.yml", "v2_decoder_alpha_entmax"),
+        # "entmax15": ("decoder_entmax15_baseline.yml", "v2_decoder_entmax15"),
+        # "alpha_entmax": ("decoder_alpha_entmax.yml", "v2_decoder_alpha_entmax"),
     }
 
     model_results = dict()
@@ -134,26 +124,26 @@ def main():
         pred_boxes = outputs['pred_boxes'].detach().cpu()
 
         probas = pred_logits.softmax(-1)[0, :, :-1]
-        keep = probas.max(-1).values > 0.7
+        keep = probas.max(-1).values > 0.5
         queries = keep.nonzero()
-        print(model_name, queries)
-
-        # convert boxes from [0; 1] to image scales
-        # pred_boxes = rescale_bboxes(pred_boxes[0], image.size)
-        # print(pred_boxes.shape)
-        # print(predicted_boxes.shape, probas.shape, keep.shape, predicted_probs.shape)
 
         # don't need the list anymore
         conv_features = conv_features[0]
         dec_attentions = dec_attn_weights[0]
+
         # get the feature map shape
         # Here we get the feature from the last block in the last layer of ResNet backbone
         h, w = conv_features['3'].tensors.shape[-2:]
+        print("h=", h, "w=", w)
 
         output = []
 
         for idx, query in enumerate(queries):
+            print("query", idx, "map", dec_attentions[0, query].shape)
             attn_map = dec_attentions[0, query].view(h, w).detach().cpu()
+            sparse = (attn_map == 0.0).type(torch.IntTensor).sum()
+            print("sparse", sparse)
+
             predicted_class = probas[query].argmax().item()
             predicted_boxes = rescale_bboxes(pred_boxes[0, query], image.size)
 
@@ -161,16 +151,16 @@ def main():
                     "query": query.item(),
                     "attention_map": attn_map,
                     "predicted_class": predicted_class,
-                    "predicted_label": categories[str(predicted_class)],
+                    "predicted_label": categories[predicted_class],
                     "predicted_prob": probas[query, predicted_class].item(),
                     "predicted_boxes": predicted_boxes.squeeze(0),  # pred_boxes[query].squeeze(0)
                 }
             output.append(item)
 
         model_results[model_name] = output
-    visualize_model_results(model_results, image, box_annotations)
+    # visualize_model_results(model_results, image, box_annotations)
 
-    # torch.save(model_results, "temp/louis_result.pt")
+    # torch.save(model_results, f"temp/{image_id}_result.pt")
         # fig, axes = plt.subplots(nrows=1, ncols=len(output), figsize=(5 * (len(output) - 1), 5))
         # for idx, item in enumerate(output):
         #     ax = axes[idx]
@@ -275,4 +265,15 @@ def visualize_model_results(model_results, image, bbox_annotations):
 
 
 if __name__ == "__main__":
-    main()
+    image_id = 170474
+    box_annotations = [
+        {'bbox': [345.92, 34.32, 26.1, 27.45], 'category': 'sports ball', 'id': 37, 'image_id': image_id},
+        {'bbox': [153.17, 27.02, 304.04, 448.98], 'category': 'person', 'id': 1, 'image_id': image_id},
+        {'bbox': [64.32, 312.27, 121.65, 150.65], 'category': 'tennis racket', 'id': 43, 'image_id': image_id},
+        {'bbox': [489.53, 408.47, 109.47, 61.5], 'category': 'chair', 'id': 62, 'image_id': image_id}
+    ]
+    categories = dict()
+    for ann in box_annotations:
+        categories[ann['id']] = ann['category']
+
+    main(image_id, box_annotations, categories)
