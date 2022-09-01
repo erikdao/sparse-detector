@@ -91,8 +91,8 @@ def main(image_id, box_annotations, categories):
     input_tensor, image = load_image(image_id)
 
     model_list = {
-        # "softmax": ("detr_baseline.yml", "v2_baseline_detr"),
-        "sparsemax": ("decoder_sparsemax_baseline.yml", "v2_decoder_sparsemax"),
+        "softmax": ("detr_baseline.yml", "v2_baseline_detr"),
+        # "sparsemax": ("decoder_sparsemax_baseline.yml", "v2_decoder_sparsemax"),
         # "entmax15": ("decoder_entmax15_baseline.yml", "v2_decoder_entmax15"),
         # "alpha_entmax": ("decoder_alpha_entmax.yml", "v2_decoder_alpha_entmax"),
     }
@@ -158,7 +158,7 @@ def main(image_id, box_annotations, categories):
             output.append(item)
 
         model_results[model_name] = output
-    # visualize_model_results(model_results, image, box_annotations)
+    visualize_model_results(model_results, image, box_annotations)
 
     # torch.save(model_results, f"temp/{image_id}_result.pt")
         # fig, axes = plt.subplots(nrows=1, ncols=len(output), figsize=(5 * (len(output) - 1), 5))
@@ -218,10 +218,10 @@ def visualize_model_results(model_results, image, bbox_annotations):
         predicted_prob = data["predicted_prob"]
         predicted_boxes = data["predicted_boxes"]
 
-        ax.imshow(attention_map, cmap="binary")
+        ax.imshow(attention_map, cmap="viridis")
 
         # assert predicted_class == groundtruth, f"predicted_class: {predicted_class}; groundtruth: {groundtruth}"
-        ax.set_title("Query %d" % (query), pad=10)
+        ax.set_title("Query %d: %s" % (query, predicted_label), pad=10)
     
         # When showing the attention maps, matplotlib create a canvas of different scale compared
         # with the case when an actual image is shown.
@@ -236,41 +236,46 @@ def visualize_model_results(model_results, image, bbox_annotations):
         bbox = rescale_bboxes_for_ax(predicted_boxes, (imw, imh), (w, h))
         xmin, ymin, xmax, ymax = bbox
         rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                                fill=False, color=ColorPalette.YELLOW, linewidth=2, zorder=1000, axes=ax)
-        text = f"{predicted_label}: {predicted_prob:.4f}"
-        ax.text(xmin+0.48, ymin-0.6, text, fontsize=14, bbox=dict(facecolor=ColorPalette.YELLOW, edgecolor=ColorPalette.YELLOW))
-
+                                fill=False, color=ColorPalette.YELLOW, linewidth=4, zorder=1000, axes=ax)
         ax.add_artist(rect)
-        ax.set_xlabel(model)
-        ax.get_xaxis().set_ticks([])
-        ax.get_yaxis().set_visible(False)
+        # text = f"{predicted_label}: {predicted_prob:.4f}"
+        # ax.text(xmin+0.48, ymin-0.6, text, fontsize=14, bbox=dict(facecolor=ColorPalette.YELLOW, edgecolor=ColorPalette.YELLOW))
+
+        # ax.set_xlabel(model)
+        # ax.get_xaxis().set_ticks([])
+        # ax.get_yaxis().set_visible(False)
+        ax.axis('off')
 
     for idx, ann in enumerate(bbox_annotations):
         category = ann['id']
-        fig, axes = plt.subplots(nrows=1, ncols=5, figsize=(20, 6))
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 12))
 
-        plot_input_image(axes[0], image, ann)
+        # plot_input_image(axes[0], image, ann)
 
         for mid, (model_name, result) in enumerate(model_results.items()):
             matched_predictions = [x for x in result if x['predicted_class'] == category]
             if len(matched_predictions) == 0:
                 print(model_name, category)
-            plot_attention_map(axes[mid+1], matched_predictions[0], category, model_name)
+            plot_attention_map(ax, matched_predictions[0], category, model_name)
 
         fig.subplots_adjust(wspace=0.02)
 
         image_id = ann['image_id']
-        fig.savefig(f"outputs/cherry_pick_attentions/{image_id}_{idx}_row.pdf", bbox_inches="tight")
-        fig.savefig(f"outputs/cherry_pick_attentions/{image_id}_{idx}_row.png", bbox_inches="tight")
+        fig.savefig(f"outputs/presentations/{image_id}_{idx}_row.pdf", bbox_inches="tight")
+        fig.savefig(f"outputs/presentations/{image_id}_{idx}_row.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
-    image_id = 170474
+    image_id = 291664  # 170474
+    # box_annotations = [
+    #     {'bbox': [345.92, 34.32, 26.1, 27.45], 'category': 'sports ball', 'id': 37, 'image_id': image_id},
+    #     {'bbox': [153.17, 27.02, 304.04, 448.98], 'category': 'person', 'id': 1, 'image_id': image_id},
+    #     {'bbox': [64.32, 312.27, 121.65, 150.65], 'category': 'tennis racket', 'id': 43, 'image_id': image_id},
+    #     {'bbox': [489.53, 408.47, 109.47, 61.5], 'category': 'chair', 'id': 62, 'image_id': image_id}
+    # ]
     box_annotations = [
-        {'bbox': [345.92, 34.32, 26.1, 27.45], 'category': 'sports ball', 'id': 37, 'image_id': image_id},
-        {'bbox': [153.17, 27.02, 304.04, 448.98], 'category': 'person', 'id': 1, 'image_id': image_id},
-        {'bbox': [64.32, 312.27, 121.65, 150.65], 'category': 'tennis racket', 'id': 43, 'image_id': image_id},
-        {'bbox': [489.53, 408.47, 109.47, 61.5], 'category': 'chair', 'id': 62, 'image_id': image_id}
+        {'bbox': [280.66, 169.34, 209.06, 328.8], 'category': 'dog', 'id': 18, 'image_id': image_id},
+        {'bbox': [131.38, 65.1, 184.1, 396.37], 'category': 'fire hydrant', 'id': 11, 'image_id': image_id}
     ]
     categories = dict()
     for ann in box_annotations:
