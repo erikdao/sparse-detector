@@ -25,3 +25,4 @@ outputs/*
 !outputs/README.md
 
 data/UnRel
+unrel/outputs

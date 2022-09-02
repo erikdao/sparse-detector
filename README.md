@@ -6,6 +6,42 @@ Master Thesis Project by Cuong Duc Dao -- Master's Programme in Machine Learning
 
 ## Work Logs
 
+### September 1st, 2022
+
+```
+Softmax
+{'AP_50': 0.03170949496404163,
+ 'AP_75': 0.028710185283611276,
+ 'AP_L': 0.03069857003776835,
+ 'AP_M': 0.022230632796896174,
+ 'AP_S': 0.011834393752191258,
+ 'mAP': 0.025554057965603467}
+
+Sparsemax
+{'AP_50': 0.032027845254098596,
+ 'AP_75': 0.02881263003975014,
+ 'AP_L': 0.030352163053534317,
+ 'AP_M': 0.02436662050037096,
+ 'AP_S': 0.015283451062276831,
+ 'mAP': 0.025125307272680152}
+
+ entmax15
+ {'AP_50': 0.0324739056984049,
+ 'AP_75': 0.02810369871457106,
+ 'AP_L': 0.03062565813852209,
+ 'AP_M': 0.02170179411054357,
+ 'AP_S': 0.017782058507155356,
+ 'mAP': 0.025561637604916598}
+
+ alpha-entmax
+ {'AP_50': 0.032876511900922535,
+ 'AP_75': 0.029929499689539035,
+ 'AP_L': 0.030596041442378433,
+ 'AP_M': 0.023345199319474996,
+ 'AP_S': 0.012475182372247887,
+ 'mAP': 0.02618037648196963}
+ ```
+
 This section contains the log of the works that I have done in this project. I'm trying to log my works as details as possible to help my future self in tracing back to any problems, directions I've tried.
 
 ### July 20, 2022

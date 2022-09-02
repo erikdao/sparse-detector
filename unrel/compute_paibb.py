@@ -1,23 +1,27 @@
 """
-Compute the Percentage of Attentions inside Bounding Boxes metrics
+Compute the Perc of Attention Inside Bounding Boxes for UnRel data
 
 Run:
-python -m scripts.compute_paibb \
+python -m unrel.compute_paibb \
+    --coco-path data/UnRel \
     --detr-config-file configs/decoder_sparsemax_baseline.yml \
     --resume-from-checkpoint checkpoints/v2_decoder_sparsemax/checkpoint.pth \
     --decoder-act sparsemax
 
-python -m scripts.compute_paibb \
+python -m unrel.compute_paibb \
+    --coco-path data/UnRel \
     --detr-config-file configs/detr_baseline.yml \
     --resume-from-checkpoint checkpoints/v2_baseline_detr/checkpoint.pth \
     --decoder-act softmax
 
-python -m scripts.compute_paibb \
+python -m unrel.compute_paibb \
+    --coco-path data/UnRel \
     --detr-config-file configs/decoder_entmax15_baseline.yml \
     --resume-from-checkpoint checkpoints/v2_decoder_entmax15/checkpoint.pth \
     --decoder-act entmax15
 
-python -m scripts.compute_paibb \
+python -m unrel.compute_paibb \
+    --coco-path data/UnRel \
     --detr-config-file configs/decoder_alpha_entmax.yml \
     --resume-from-checkpoint checkpoints/v2_decoder_alpha_entmax/checkpoint.pth \
     --decoder-act alpha_entmax
@@ -53,6 +57,7 @@ from sparse_detector.utils.logging import MetricLogger
 import sparse_detector.datasets.transforms as T
 from sparse_detector.utils.box_ops import box_cxcywh_to_xyxy
 
+from unrel.data_utils import build_dataloaders
 
 def rescale_bboxes(out_bbox, size):
     img_w, img_h = size
@@ -66,6 +71,7 @@ def rescale_bboxes(out_bbox, size):
 @click.option("--detr-config-file", default="", help="Path to config file")
 @click.option("--decoder-act", type=str, default="sparsemax")
 @click.option("--batch-size", default=1, type=int, help="Batch size per GPU")
+@click.option('--coco-path', type=str)
 @click.option("--resume-from-checkpoint", default="", help="resume from checkpoint")
 @click.option(
     "--detection-threshold",
@@ -84,6 +90,7 @@ def main(
     resume_from_checkpoint,
     detection_threshold,
     pre_norm,
+    coco_path
 ):
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -129,7 +136,7 @@ def main(
     metric_logger = MetricLogger(delimiter=" ")
 
     for batch_id, (batch_images, batch_targets) in enumerate(
-        metric_logger.log_every(data_loader, log_freq=100, header=None, prefix="val")
+        metric_logger.log_every(data_loader, log_freq=50, header=None, prefix="val")
     ):
         batch_images = batch_images.to(device)
         batch_targets = [{k: v.to(device) for k, v in t.items()} for t in batch_targets]
@@ -170,7 +177,7 @@ def main(
                 "image_id": img_id,
                 "orig_size": targets['orig_size'].detach().cpu()
             }
-            torch.save(img_data, Path(package_root) / "outputs" / "attentions" / f"{decoder_act}" / (f"{img_id}".rjust(12, '0') + '.pt'))
+            torch.save(img_data, Path(package_root) / "unrel" / "outputs" / "attentions" / f"{decoder_act}" / (f"{img_id}".rjust(12, '0') + '.pt'))
 
             for (pred_id, gt_id) in zip(pred_indices, gt_indices):
                 attns = img_attns[pred_id]  # [h, w]
@@ -202,7 +209,7 @@ def main(
 
         # Write batch score
         fname = f"paibb_{decoder_act}.txt"
-        fpath = Path(package_root) / "outputs" / "metrics" / "paibb" / fname
+        fpath = Path(package_root) / "unrel" / "outputs" / "metrics" / "paibb" / fname
         with open(fpath, "a") as f:
             for score in batch_scores:
                 print(score, file=f)

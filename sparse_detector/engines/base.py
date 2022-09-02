@@ -193,6 +193,7 @@ def evaluate(
     header = 'Test:'
 
     iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
+    print("iou_types", iou_types)
     coco_evaluator = CocoEvaluator(base_ds, iou_types)
 
     for samples, targets in metric_logger.log_every(data_loader, log_freq=10, header=header, prefix="val", epoch=epoch):
